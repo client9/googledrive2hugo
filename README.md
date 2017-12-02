@@ -12,7 +12,7 @@ We do this by:
 From there you publish in a few ways
 
 * Run Hugo and serve directly or publish output
-* Commit markdown pages, trigger Travis-CI, whatever
+* Commit the generated markdown pages, trigger Travis-CI, whatever
 
 
 It's not clear what exactly the best API is since I'm new to Google Drive API
