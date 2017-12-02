@@ -18,6 +18,7 @@ It's not clear what exactly the best API is since I'm new to Google Drive API
 
 ## Challenges
 
+* Permissions (Google OAuth) is a bit painful to set up
 * Google Docs HTML output is crazy
 * Google Docs only supports one type of paragraph style, so code blocks and blockquotes have to be inferred
 * Unclear on what to do with images for now
