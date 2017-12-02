@@ -23,3 +23,8 @@ It's not clear what exactly the best API is since I'm new to Google Drive API
 * Google Docs only supports one type of paragraph style, so code blocks and blockquotes have to be inferred
 * Unclear on what to do with images for now
 
+## Notes
+
+* Scan Google Drive Folder for Google Doc canidates
+* Convert Google Doc to Markdown
+* Fix up front matter
