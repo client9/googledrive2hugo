@@ -9,21 +9,34 @@ import (
 	"github.com/client9/googledrive2hugo"
 
 	"google.golang.org/api/drive/v3"
+
+	// for converting gdoc filename to something same
+	"github.com/gohugoio/hugo/helpers"
 )
 
 var (
-	flagRoot *string
-	flagOut  *string
+	flagRoot     *string
+	flagOut      *string
+	flagSanitize *bool
 )
 
 func init() {
 	flagRoot = flag.String("root", "", "root dir in google drive to use")
 	flagOut = flag.String("out", ".", "output directory")
+	flagSanitize = flag.Bool("sanitize-filename", true, "sanitize gdoc filename")
 	flag.Parse()
 }
 
 // sample WalkFn
 func printer(srv *drive.Service, path string, info *drive.File, err error) error {
+
+	if *flagSanitize {
+		// PathSpec is a complicated object, but the part we need
+		// is simple.  Ideally rip it out of hugo (or make independent function)
+		pspec := helpers.PathSpec{}
+		path = pspec.URLize(path)
+	}
+
 	if err != nil {
 		log.Printf("Error on %q, %s", path, err)
 		return nil
