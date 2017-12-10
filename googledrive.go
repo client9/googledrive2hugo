@@ -59,15 +59,14 @@ func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) er
 func Walk(srv *drive.Service, root string, walkfn WalkFunc) error {
 	query := fmt.Sprintf("name='%s'", root)
 	r, err := srv.Files.List().Q(query).Do()
+	if err != nil {
+		return err
+	}
 	if len(r.Files) != 1 {
 		err = fmt.Errorf("0 or more than file for %q found", root)
 	}
-	if err != nil {
-		err = walkfn(srv, root, nil, err)
-	} else {
-		info := r.Files[0]
-		err = walk(srv, root, info, walkfn)
-	}
+	info := r.Files[0]
+	err = walk(srv, root, info, walkfn)
 	if err == filepath.SkipDir {
 		return nil
 	}
