@@ -73,6 +73,22 @@ func extractHref(src []byte) []byte {
 	return []byte(aurl.Query().Get("q"))
 }
 
+// cleanupText fixes up various text issues
+// * the '--' in <!-- more --> can get converted to a smart-hyphen character
+func cleanupText(src []byte) []byte {
+
+	// there is only one <!-- more --> per file
+	// TODO: use RegExp to simplify
+	src = bytes.Replace(src, []byte("<!—more—>"), []byte("<!-- more -->"), 1)
+	src = bytes.Replace(src, []byte("<!—more —>"), []byte("<!-- more -->"), 1)
+	src = bytes.Replace(src, []byte("<!— more—>"), []byte("<!-- more -->"), 1)
+	src = bytes.Replace(src, []byte("<!— more —>"), []byte("<!-- more -->"), 1)
+
+	// other fix ups here.
+
+	return src
+}
+
 func parse(src io.Reader, out io.Writer) error {
 	z := html.NewTokenizer(src)
 	skip := false
@@ -101,7 +117,7 @@ func parse(src io.Reader, out io.Writer) error {
 			}
 			// emitBytes should copy the []byte it receives,
 			// if it doesn't process it immediately.
-			out.Write(z.Text())
+			out.Write(cleanupText(z.Text()))
 		case html.StartTagToken:
 			tn, _ := z.TagName()
 			tns := string(tn)
