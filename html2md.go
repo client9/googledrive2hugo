@@ -48,18 +48,23 @@ func getHref(z *html.Tokenizer) []byte {
 
 }
 
-// getStyle reutrns the style attribute
-func getStyle(z *html.Tokenizer) string {
+// getAttr scans the HTML attributes and returns the class and style
+func getAttr(z *html.Tokenizer) (string, string) {
+	var cname string
+	var style string
 	for {
 		key, value, more := z.TagAttr()
-		if "style" == string(key) {
-			return string(value)
+		switch string(key) {
+		case "style":
+			style = string(value)
+		case "class":
+			cname = string(value)
 		}
 		if !more {
 			break
 		}
 	}
-	return ""
+	return cname, style
 
 }
 
@@ -91,11 +96,14 @@ func cleanupText(src []byte) []byte {
 
 func parse(src io.Reader, out io.Writer) error {
 	z := html.NewTokenizer(src)
-	skip := false
 	bold := false
 	italic := false
 	spanCode := false
 	inTable := false
+	inTitle := false
+	inSubtitle := false
+	inStyle := false
+
 	rowCount := 0
 	cellCount := 0
 
@@ -111,10 +119,18 @@ func parse(src io.Reader, out io.Writer) error {
 			}
 			return err
 		case html.TextToken:
-			if skip {
-				skip = false
+			// don't print out style sheet
+			if inStyle {
+				inStyle = false
 				continue
 			}
+			if inTitle {
+				continue
+			}
+			if inSubtitle {
+				continue
+			}
+
 			// emitBytes should copy the []byte it receives,
 			// if it doesn't process it immediately.
 			out.Write(cleanupText(z.Text()))
@@ -123,7 +139,7 @@ func parse(src io.Reader, out io.Writer) error {
 			tns := string(tn)
 			switch tns {
 			case "span":
-				style := getStyle(z)
+				_, style := getAttr(z)
 				bold = isBold(style)
 				italic = isItalic(style)
 				spanCode = isCode(style)
@@ -137,7 +153,15 @@ func parse(src io.Reader, out io.Writer) error {
 					out.Write([]byte{'`'})
 				}
 			case "p":
-				style := getStyle(z)
+				cname, style := getAttr(z)
+				if cname == "title" {
+					inTitle = true
+					continue
+				}
+				if cname == "subtitle" {
+					inSubtitle = true
+					continue
+				}
 				if isBlockQuote(style) {
 					out.Write([]byte{'>', ' '})
 				}
@@ -154,7 +178,7 @@ func parse(src io.Reader, out io.Writer) error {
 				out.Write([]byte{'\n', '#', '#', '#', ' '})
 			case "style":
 				// don't print out internal style sheet
-				skip = true
+				inStyle = true
 			case "ul":
 				depth++
 				//out.Write([]byte{'\n'})
@@ -201,9 +225,11 @@ func parse(src io.Reader, out io.Writer) error {
 			case "h1", "h2", "h3", "h4", "h5", "h6":
 				out.Write([]byte{'\n', '\n'})
 			case "p":
-				if !inTable {
+				if !inTable && !inTitle && !inSubtitle {
 					out.Write([]byte{'\n'})
 				}
+				inTitle = false
+				inSubtitle = false
 			case "a":
 				if len(href) > 0 {
 					out.Write([]byte{']', '('})
@@ -211,6 +237,8 @@ func parse(src io.Reader, out io.Writer) error {
 					out.Write([]byte{')'})
 					href = nil
 				}
+			case "style":
+				inStyle = false
 			case "td":
 				out.Write([]byte{' ', '|'})
 			case "tr":
