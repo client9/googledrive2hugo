@@ -32,7 +32,7 @@ func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) er
 	}
 
 	query := fmt.Sprintf("parents in '%s'", info.Id)
-	names, err := srv.Files.List().Q(query).Do()
+	names, err := srv.Files.List().Fields("files(id,name,mimeType,createdTime,modifiedTime,description)").Spaces("drive").Corpora("user").Q(query).Do()
 
 	if err != nil {
 		return walkFn(srv, path, info, err)
@@ -58,7 +58,7 @@ func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) er
 
 func Walk(srv *drive.Service, root string, walkfn WalkFunc) error {
 	query := fmt.Sprintf("name='%s'", root)
-	r, err := srv.Files.List().Q(query).Do()
+	r, err := srv.Files.List().Spaces("drive").Corpora("user").Q(query).Do()
 	if err != nil {
 		return err
 	}
