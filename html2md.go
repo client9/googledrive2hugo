@@ -2,7 +2,7 @@ package googledrive2hugo
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -147,17 +147,17 @@ func parse(src io.Reader, out io.Writer) error {
 					out.Write([]byte{'['})
 				}
 			case "h1":
-				out.Write([]byte{'#', ' '})
+				out.Write([]byte{'\n', '#', ' '})
 			case "h2":
-				out.Write([]byte{'#', '#', ' '})
+				out.Write([]byte{'\n', '#', '#', ' '})
 			case "h3":
-				out.Write([]byte{'#', '#', '#', ' '})
+				out.Write([]byte{'\n', '#', '#', '#', ' '})
 			case "style":
 				// don't print out internal style sheet
 				skip = true
 			case "ul":
 				depth++
-				out.Write([]byte{'\n'})
+				//out.Write([]byte{'\n'})
 			case "li":
 				for i := 1; i < depth; i++ {
 					out.Write([]byte{' '})
@@ -195,7 +195,7 @@ func parse(src io.Reader, out io.Writer) error {
 				}
 			case "ul":
 				depth--
-				out.Write([]byte{'\n'})
+				//out.Write([]byte{'\n'})
 			case "li":
 				out.Write([]byte{'\n'})
 			case "h1", "h2", "h3", "h4", "h5", "h6":
@@ -305,6 +305,9 @@ func fixBlocks(src []byte, w io.Writer) error {
 
 // Convert Google Doc HTML to Hugo Markdown
 func Convert(src []byte, fileInfo *drive.File, w io.Writer) error {
+	// will contain gDrive meta/ Hugo front matter
+	metamap := make(map[string]interface{})
+
 	r := bytes.NewReader(src)
 
 	// produce a basic markdown output
@@ -325,15 +328,31 @@ func Convert(src []byte, fileInfo *drive.File, w io.Writer) error {
 	content := page.Content()    // []bytes
 	meta, err := page.Metadata() // interface{} :-|
 	if err != nil {
-		return err
+		// Due to bad format of metadata?
+		return fmt.Errorf("Metadata format: %s", err)
 	}
 
-	metamap, ok := meta.(map[string]interface{})
-	if !ok {
-		return errors.New("Unable to convert Hugo metadata")
+	// case err == nil && meta == nil: front matter doesn't exist
+	if meta != nil {
+		var ok bool
+		if metamap, ok = meta.(map[string]interface{}); !ok {
+			return fmt.Errorf("Unable to convert Hugo metadata", meta)
+		}
 	}
 
-	// TODO: add in metadata
+	// Google File Metadata:
+	// https://godoc.org/google.golang.org/api/drive/v3#File
+	//
+	// Note: description can only be set via gDrive, not gDocs
+	//
+	// Hugo Front Matter:
+	// https://gohugo.io/content-management/front-matter/
+	//
+	metamap["date"] = fileInfo.CreatedTime
+	metamap["lastmod"] = fileInfo.ModifiedTime
+	if fileInfo.Description != "" {
+		metamap["description"] = fileInfo.Description
+	}
 
 	// TODO: '-' produces yaml, '+' toml, '{' JSON
 	//  should make a flag
