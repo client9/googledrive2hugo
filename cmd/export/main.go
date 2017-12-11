@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
