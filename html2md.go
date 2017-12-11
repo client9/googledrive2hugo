@@ -84,10 +84,10 @@ func cleanupText(src []byte) []byte {
 
 	// there is only one <!-- more --> per file
 	// TODO: use RegExp to simplify
-	src = bytes.Replace(src, []byte("<!—more—>"), []byte("<!-- more -->"), 1)
-	src = bytes.Replace(src, []byte("<!—more —>"), []byte("<!-- more -->"), 1)
-	src = bytes.Replace(src, []byte("<!— more—>"), []byte("<!-- more -->"), 1)
-	src = bytes.Replace(src, []byte("<!— more —>"), []byte("<!-- more -->"), 1)
+	src = bytes.Replace(src, []byte("<!—more—>"), []byte("<!--more-->"), 1)
+	src = bytes.Replace(src, []byte("<!—more —>"), []byte("<!--more-->"), 1)
+	src = bytes.Replace(src, []byte("<!— more—>"), []byte("<!--more-->"), 1)
+	src = bytes.Replace(src, []byte("<!— more —>"), []byte("<!--more-->"), 1)
 
 	// other fix ups here.
 
