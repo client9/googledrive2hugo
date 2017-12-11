@@ -94,7 +94,7 @@ func cleanupText(src []byte) []byte {
 	return src
 }
 
-func parse(src []byte, out io.Writer) error {
+func parse(src []byte, metamap map[string]interface{}, out io.Writer) error {
 	z := html.NewTokenizer(bytes.NewReader(src))
 	bold := false
 	italic := false
@@ -125,9 +125,11 @@ func parse(src []byte, out io.Writer) error {
 				continue
 			}
 			if inTitle {
+				metamap["title"] = string(z.Text())
 				continue
 			}
 			if inSubtitle {
+				metamap["subtitle"] = string(z.Text())
 				continue
 			}
 
@@ -339,7 +341,7 @@ func Convert(src []byte, fileInfo *drive.File, w io.Writer) error {
 	// produce a basic markdown output
 	// it should have built-in front matter, and mostly correct markdown
 	phase1 := bytes.Buffer{}
-	err := parse(src, &phase1)
+	err := parse(src, metamap, &phase1)
 	if err != nil {
 		return err
 	}
