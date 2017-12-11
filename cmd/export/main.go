@@ -80,7 +80,6 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 		return err
 	}
 
-	// TODO remove spaces, etc?
 	fd, err := os.Create(outpath)
 	if err != nil {
 		log.Printf("WARNING: unable to create file %s: %s", outpath, err)
