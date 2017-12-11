@@ -94,8 +94,8 @@ func cleanupText(src []byte) []byte {
 	return src
 }
 
-func parse(src io.Reader, out io.Writer) error {
-	z := html.NewTokenizer(src)
+func parse(src []byte, out io.Writer) error {
+	z := html.NewTokenizer(bytes.NewReader(src))
 	bold := false
 	italic := false
 	spanCode := false
@@ -333,15 +333,13 @@ func fixBlocks(src []byte, w io.Writer) error {
 
 // Convert Google Doc HTML to Hugo Markdown
 func Convert(src []byte, fileInfo *drive.File, w io.Writer) error {
-	// will contain gDrive meta/ Hugo front matter
+	// will contain gDrive meta / Hugo front matter
 	metamap := make(map[string]interface{})
-
-	r := bytes.NewReader(src)
 
 	// produce a basic markdown output
 	// it should have built-in front matter, and mostly correct markdown
 	phase1 := bytes.Buffer{}
-	err := parse(r, &phase1)
+	err := parse(src, &phase1)
 	if err != nil {
 		return err
 	}
