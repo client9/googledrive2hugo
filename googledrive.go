@@ -2,8 +2,9 @@ package googledrive2hugo
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"path/filepath"
+	"strings"
 
 	"google.golang.org/api/drive/v3"
 )
@@ -24,7 +25,7 @@ func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) er
 		if IsDir(info) && err != filepath.SkipDir {
 			return nil
 		}
-		return err
+		return fmt.Errorf("%s: %s", path, err)
 	}
 
 	if !IsDir(info) {
@@ -57,16 +58,29 @@ func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) er
 }
 
 func Walk(srv *drive.Service, root string, walkfn WalkFunc) error {
-	query := fmt.Sprintf("name='%s'", root)
-	r, err := srv.Files.List().Spaces("drive").Corpora("user").Q(query).Do()
-	if err != nil {
-		return err
+	var info *drive.File
+	parent := "root"
+
+	// TODO -- this may not be exactly right
+	//  but can't find the right thing in golang path module
+	parts := strings.Split(root, "/")
+
+	for _, dir := range parts {
+		query := fmt.Sprintf("name='%s' and mimeType='application/vnd.google-apps.folder' and '%s' in parents", dir, parent)
+		r, err := srv.Files.List().Spaces("drive").Corpora("user").Q(query).Do()
+		if err != nil {
+			return err
+		}
+		if len(r.Files) == 0 {
+			return fmt.Errorf("%q not found", root)
+		}
+		if len(r.Files) > 1 {
+			return fmt.Errorf("more than file for %q found", root)
+		}
+		info = r.Files[0]
+		parent = info.Id
 	}
-	if len(r.Files) != 1 {
-		err = fmt.Errorf("0 or more than file for %q found", root)
-	}
-	info := r.Files[0]
-	err = walk(srv, root, info, walkfn)
+	err := walk(srv, "", info, walkfn)
 	if err == filepath.SkipDir {
 		return nil
 	}
@@ -75,11 +89,31 @@ func Walk(srv *drive.Service, root string, walkfn WalkFunc) error {
 
 // ExportHTML downloads a Google Doc as HTML
 //  Download as Zip and unzip
-func ExportHTML(srv *drive.Service, f *drive.File) ([]byte, error) {
+func ExportHTML(srv *drive.Service, f *drive.File) (io.ReadCloser, error) {
 	resp, err := srv.Files.Export(f.Id, "text/html").Download()
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return resp.Body, nil
+}
+
+// output map is the one used by Hugo
+func FileInfoToMeta(fileInfo *drive.File) map[string]interface{} {
+	meta := make(map[string]interface{})
+
+	// Google File Metadata:
+	// https://godoc.org/google.golang.org/api/drive/v3#File
+	//
+	// Note: description can only be set via gDrive, not gDocs
+	//
+	// Hugo Front Matter:
+	// https://gohugo.io/content-management/front-matter/
+	//
+	meta["date"] = fileInfo.CreatedTime
+	meta["lastmod"] = fileInfo.ModifiedTime
+	if fileInfo.Description != "" {
+		meta["description"] = fileInfo.Description
+	}
+
+	return meta
 }

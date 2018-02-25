@@ -89,8 +89,9 @@ func cleanupText(src []byte) []byte {
 	src = bytes.Replace(src, []byte("<!— more—>"), []byte("<!--more-->"), 1)
 	src = bytes.Replace(src, []byte("<!— more —>"), []byte("<!--more-->"), 1)
 
-	// other fix ups here.
-
+	// keep text on one line
+	src = bytes.Replace(src, []byte("\n"), []byte(" "), -1)
+	// TODO, replace multiple spaces with 1
 	return src
 }
 
@@ -128,10 +129,6 @@ func parse(src []byte, metamap map[string]interface{}, out io.Writer) error {
 				metamap["title"] = string(z.Text())
 				continue
 			}
-			if inSubtitle {
-				metamap["subtitle"] = string(z.Text())
-				continue
-			}
 
 			// emitBytes should copy the []byte it receives,
 			// if it doesn't process it immediately.
@@ -149,7 +146,7 @@ func parse(src []byte, metamap map[string]interface{}, out io.Writer) error {
 					out.Write([]byte{'*', '*'})
 				}
 				if italic {
-					out.Write([]byte{'_'})
+					out.Write([]byte{'*'})
 				}
 				if spanCode {
 					out.Write([]byte{'`'})
@@ -212,7 +209,7 @@ func parse(src []byte, metamap map[string]interface{}, out io.Writer) error {
 					spanCode = false
 				}
 				if italic {
-					out.Write([]byte{'_'})
+					out.Write([]byte{'*'})
 					italic = false
 				}
 				if bold {
@@ -227,6 +224,9 @@ func parse(src []byte, metamap map[string]interface{}, out io.Writer) error {
 			case "h1", "h2", "h3", "h4", "h5", "h6":
 				out.Write([]byte{'\n', '\n'})
 			case "p":
+				if inSubtitle {
+					out.Write([]byte("<!--more-->\n"))
+				}
 				if !inTable && !inTitle && !inSubtitle {
 					out.Write([]byte{'\n'})
 				}
@@ -273,10 +273,17 @@ func parse(src []byte, metamap map[string]interface{}, out io.Writer) error {
 // ```
 //
 func fixBlocks(src []byte, w io.Writer) error {
+	// remove any leading or trailing whitespace in doc
+	src = bytes.TrimSpace(src)
+	// imperfect but remove blank lines
+	src = bytes.Replace(src, []byte{'\n', '\n', '\n'}, []byte{'\n', '\n'}, -1)
+
 	lines := bytes.Split(src, []byte{'\n'})
 	inCode := false
 	codefence := false
 	for _, line := range lines {
+		// remove trailing whitespace
+		line = bytes.TrimRight(line, " ")
 		codeline := false
 		if len(line) >= 2 && line[0] == '`' && line[len(line)-1] == '`' {
 			codeline = true
@@ -326,6 +333,10 @@ func fixBlocks(src []byte, w io.Writer) error {
 			continue
 		}
 
+		// not in code block
+		//  get rid of empty <b> blocks
+		line := bytes.Replace(line, []byte("**"), []byte(""), -1)
+
 		w.Write(line)
 		w.Write([]byte{'\n'})
 	}
@@ -343,7 +354,7 @@ func Convert(src []byte, fileInfo *drive.File, w io.Writer) error {
 	phase1 := bytes.Buffer{}
 	err := parse(src, metamap, &phase1)
 	if err != nil {
-		return err
+		return fmt.Errorf("Unable to parse markdown: %s", err)
 	}
 
 	// Gross!  Do in one pass with a pipe
@@ -351,7 +362,7 @@ func Convert(src []byte, fileInfo *drive.File, w io.Writer) error {
 	// phase2 augments the frontmatter, and does fixups for mutli-line code blocks and blockquotes
 	page, err := parser.ReadFrom(phase2)
 	if err != nil {
-		return err
+		return fmt.Errorf("phrase 2: %s", err)
 	}
 	content := page.Content()    // []bytes
 	meta, err := page.Metadata() // interface{} :-|

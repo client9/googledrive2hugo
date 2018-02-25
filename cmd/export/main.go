@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,7 +15,7 @@ import (
 
 	// for saving intermediate HTML.  The google generated html is
 	// compressed
-	"github.com/yosssi/gohtml"
+	//"github.com/yosssi/gohtml"
 
 	// for converting gdoc filename to something same
 	"github.com/gohugoio/hugo/helpers"
@@ -37,6 +38,7 @@ var (
 	flagOut      *string
 	flagSanitize *bool
 	flagSaveTmp  *string
+	flagFormat   *string
 )
 
 func init() {
@@ -44,6 +46,7 @@ func init() {
 	flagOut = flag.String("out", ".", "output directory")
 	flagSaveTmp = flag.String("tmp", "", "directory to save intermediate files")
 	flagSanitize = flag.Bool("sanitize-filename", true, "sanitize gdoc filename")
+	flagFormat = flag.String("format", "html", "output format, html or md")
 	flag.Parse()
 }
 
@@ -67,8 +70,6 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 		if outpath == "." || outpath == ".." {
 			return nil
 		}
-		log.Printf("Creating directory %s", outpath)
-
 		// TODO ADD DRY RUN
 		err = os.MkdirAll(outpath, 0755)
 		if err != nil {
@@ -84,32 +85,33 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 		return nil
 	}
 
-	log.Printf("GOT path=%s, name=%s", path, info.Name)
-
-	rawhtml, err := googledrive2hugo.ExportHTML(srv, info)
+	reader, err := googledrive2hugo.ExportHTML(srv, info)
 	if err != nil {
 		log.Printf("WARNING: unable to export %s: %s", path, err)
 		return err
 	}
+	defer reader.Close()
 
-	// save raw HTML output if requested
-	if *flagSaveTmp != "" {
-		htmlpath := filepath.Join(*flagSaveTmp, path) + ".html"
-		htmldir := filepath.Dir(htmlpath)
-		if htmldir != "." {
-			err = os.MkdirAll(htmldir, 0755)
-			if err != nil {
-				log.Printf("Unable to make %s directory: %s", htmldir, err)
+	/*
+		// save raw HTML output if requested
+		if *flagSaveTmp != "" {
+			htmlpath := filepath.Join(*flagSaveTmp, path) + ".html"
+			htmldir := filepath.Dir(htmlpath)
+			if htmldir != "." {
+				err = os.MkdirAll(htmldir, 0755)
+				if err != nil {
+					log.Printf("Unable to make %s directory: %s", htmldir, err)
+					return err
+				}
+			}
+			log.Printf("Writing HTML: %s", htmlpath)
+
+			//nicehtml := gohtml.FormatBytes(rawhtml)
+			if err = ioutil.WriteFile(htmlpath, rawhtml, 0644); err != nil {
 				return err
 			}
 		}
-		log.Printf("Writing HTML: %s", htmlpath)
-
-		nicehtml := gohtml.FormatBytes(rawhtml)
-		if err = ioutil.WriteFile(htmlpath, nicehtml, 0644); err != nil {
-			return err
-		}
-	}
+	*/
 
 	// set up writing to file
 	//   dry run by default
@@ -117,10 +119,9 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 
 	// if flagOut is empty, then dry-run only
 	if *flagOut != "" {
-		outpath := filepath.Join(*flagOut, path) + ".md"
+		outpath := filepath.Join(*flagOut, path) + "." + *flagFormat
 		outdir := filepath.Dir(outpath)
 		if outdir != "." {
-			log.Printf("Creating directory %s", outdir)
 			err = os.MkdirAll(outdir, 0755)
 			if err != nil {
 				log.Printf("Unable to make directory %q: %s", outdir, err)
@@ -137,7 +138,16 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 	}
 
 	defer fd.Close()
-	return googledrive2hugo.Convert(rawhtml, info, fd)
+	fileMeta := googledrive2hugo.FileInfoToMeta(info)
+
+	switch *flagFormat {
+	//case "md":
+	//		return googledrive2hugo.Convert(rawhtml, info, fd)
+	case "html":
+		return googledrive2hugo.ConvertHTML(reader, fileMeta, fd)
+	default:
+		return fmt.Errorf("Unknown export type %s", *flagFormat)
+	}
 }
 
 func main() {
