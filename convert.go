@@ -37,9 +37,36 @@ func isStyleStrikethrough(s string) bool {
 func isStyleUnderline(s string) bool {
 	return strings.Contains(s, "text-decoration:underline")
 }
+
+// isStyleCode inspects the CSS Style to see if a monospace font is used
+//  This is hte current list of monospace fonts in google docs circa 2018
 func isStyleCode(s string) bool {
 	// other monospace fonts TBD
-	return strings.Contains(s, "Consolas")
+	var monospace = []string{
+		"Anonymous Pro",
+		"Consolas",
+		"Courier",
+		"Cousine",
+		"Cutive Mono",
+		"Fira Mono",
+		"Inconsolata",
+		"Nova Mono",
+		"Overpass Mono",
+		"Oxygen Mono",
+		"PT Mono",
+		"Roboto Mono",
+		"Share Tech Mono",
+		"Source Code Pro",
+		"Space Mono",
+		"Ubuntu Mono",
+		"VT323",
+	}
+	for _, font := range fonts {
+		if strings.Contains(s, font) {
+			return true
+		}
+	}
+	return false
 }
 
 func getStyleAttr(n *html.Node) string {
