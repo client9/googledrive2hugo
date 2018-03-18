@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -15,7 +16,7 @@ import (
 
 	// for saving intermediate HTML.  The google generated html is
 	// compressed
-	//"github.com/yosssi/gohtml"
+	"github.com/yosssi/gohtml"
 
 	// for converting gdoc filename to something same
 	"github.com/gohugoio/hugo/helpers"
@@ -90,29 +91,31 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 		log.Printf("WARNING: unable to export %s: %s", path, err)
 		return err
 	}
-	defer reader.Close()
 
-	/*
-		// save raw HTML output if requested
-		if *flagSaveTmp != "" {
-			htmlpath := filepath.Join(*flagSaveTmp, path) + ".html"
-			htmldir := filepath.Dir(htmlpath)
-			if htmldir != "." {
-				err = os.MkdirAll(htmldir, 0755)
-				if err != nil {
-					log.Printf("Unable to make %s directory: %s", htmldir, err)
-					return err
-				}
-			}
-			log.Printf("Writing HTML: %s", htmlpath)
+	rawhtml, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	reader.Close()
 
-			//nicehtml := gohtml.FormatBytes(rawhtml)
-			if err = ioutil.WriteFile(htmlpath, rawhtml, 0644); err != nil {
+	// save raw HTML output if requested
+	if *flagSaveTmp != "" {
+		htmlpath := filepath.Join(*flagSaveTmp, path) + ".html"
+		htmldir := filepath.Dir(htmlpath)
+		if htmldir != "." {
+			err = os.MkdirAll(htmldir, 0755)
+			if err != nil {
+				log.Printf("Unable to make %s directory: %s", htmldir, err)
 				return err
 			}
 		}
-	*/
+		log.Printf("Writing HTML: %s", htmlpath)
 
+		rawhtml := gohtml.FormatBytes(rawhtml)
+		if err = ioutil.WriteFile(htmlpath, rawhtml, 0644); err != nil {
+			return err
+		}
+	}
 	// set up writing to file
 	//   dry run by default
 	fd := NopWriteCloser(ioutil.Discard)
@@ -144,7 +147,7 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 	//case "md":
 	//		return googledrive2hugo.Convert(rawhtml, info, fd)
 	case "html":
-		return googledrive2hugo.ConvertHTML(reader, fileMeta, fd)
+		return googledrive2hugo.ConvertHTML(bytes.NewReader(rawhtml), fileMeta, fd)
 	default:
 		return fmt.Errorf("Unknown export type %s", *flagFormat)
 	}
