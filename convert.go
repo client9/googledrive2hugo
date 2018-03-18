@@ -61,7 +61,7 @@ func isStyleCode(s string) bool {
 		"Ubuntu Mono",
 		"VT323",
 	}
-	for _, font := range fonts {
+	for _, font := range monospace {
 		if strings.Contains(s, font) {
 			return true
 		}
@@ -181,15 +181,21 @@ func getTextChildren(n *html.Node) string {
 		if c.Type == html.TextNode {
 			out += c.Data
 		}
+		if c.Type == html.ElementNode && c.DataAtom == atom.Br {
+			out += "\n"
+		}
 	}
 	return out
 }
 
+// assumes <span style=font-family=monospace> has been convert to <code>
 func isCodeWrapper(n *html.Node) (bool, string) {
 	if n.Type != html.ElementNode || n.DataAtom != atom.P {
 		return false, ""
 	}
 
+	// if written in google-docs, then it's exactly one <code> inside <p>
+	// but if cut-n-paste, then it can be
 	// exactly one <code> inside <p>
 	code := n.FirstChild
 	if code == nil || code.NextSibling != nil || code.Type != html.ElementNode || code.DataAtom != atom.Code {
@@ -204,14 +210,20 @@ func isCodeWrapper(n *html.Node) (bool, string) {
 	return true, text.Data
 }
 
+// all children must be text nodes or <br>
 func isTextWrapper(n *html.Node) bool {
 	if n.Type != html.ElementNode || n.DataAtom != atom.Span {
 		return false
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type != html.TextNode {
-			return false
+		if c.Type == html.TextNode {
+			continue
 		}
+
+		if c.Type == html.ElementNode && c.DataAtom == atom.Br {
+			continue
+		}
+		return false
 	}
 	return true
 }
@@ -716,6 +728,9 @@ var xxx = map[string]map[string]string{
 	},
 	"pre": {
 		"class": "p-1 bg-light border",
+	},
+	"code": {
+		"class": "p-1 bg-light text-dark",
 	},
 }
 
