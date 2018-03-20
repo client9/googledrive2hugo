@@ -469,11 +469,20 @@ func hasBoldChildren(n *html.Node) bool {
 	return false
 }
 
+// looks at first row to see if it is a header row, and if so
+// move it to a new thead, and change <td> to <th>
 func fixTableNode(table *html.Node) {
 	tbody := table.FirstChild
+
+	// probably should do a warning here.
+	// this table isn't what we expected.
 	if tbody == nil || tbody.DataAtom != atom.Tbody {
 		return
 	}
+
+	// we expect the first child to be a <tr>
+	//  if it's not, or if none of the subquent <td> are bold
+	//  then nothing to do.
 	tr := tbody.FirstChild
 	if tr == nil || tr.DataAtom != atom.Tr || !hasBoldChildren(tr) {
 		return
@@ -523,13 +532,24 @@ func fixTableNode(table *html.Node) {
 	}
 }
 
+func fixTableCells(n *html.Node) {
+	child := n.FirstChild
+	if n.DataAtom == atom.Td && child.DataAtom == atom.P && child.NextSibling == nil {
+		n.RemoveChild(child)
+		reparentChildren(n, child)
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		fixTableCells(c)
+	}
+}
+
+// may turn first <tr> into a <thead><tr> and turn the <td> into <th>
 func fixTables(n *html.Node) {
 	if n.DataAtom == atom.Table {
 		fixTableNode(n)
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		fixTableNode(c)
-
 	}
 }
 
@@ -720,11 +740,8 @@ var xxx = map[string]map[string]string{
 	"table": {
 		"class": "table table-sm",
 	},
-	"thead": {
-		"class": "thead-light",
-	},
 	"blockquote": {
-		"class": "blockquote border-left border-left-thick pl-3",
+		"class": "blockquote border-left border-left-thick pl-3 text-dark",
 	},
 	"pre": {
 		"class": "p-1 bg-light border",
@@ -780,6 +797,7 @@ func ToHTML(r io.Reader, w io.Writer) (map[string]interface{}, error) {
 	convertPre(root)
 	convertBlockquote(root)
 	fixCodeBlock(root)
+	fixTableCells(root)
 	fixTables(root)
 	stripAttr(root)
 	removeEmptyTags(root)
