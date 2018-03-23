@@ -634,14 +634,36 @@ func getClassAttr(root *html.Node) string {
 	return ""
 }
 
+// is paragraph a title
 func isTitleP(n *html.Node) bool {
 	return n.Type == html.ElementNode &&
 		n.DataAtom == atom.P &&
 		strings.Contains(getClassAttr(n), "title")
 }
 
+// paragraph a subtitle
+func isSubtitleP(n *html.Node) bool {
+	return n.Type == html.ElementNode &&
+		n.DataAtom == atom.P &&
+		strings.Contains(getClassAttr(n), "subtitle")
+}
+
 func extractTitle(n *html.Node) string {
 	if isTitleP(n) {
+		val := getTextContent(n)
+		n.Parent.RemoveChild(n)
+		return val
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if title := extractTitle(c); title != "" {
+			return title
+		}
+	}
+	return ""
+}
+
+func extractSubtitle(n *html.Node) string {
+	if isSubtitleP(n) {
 		val := getTextContent(n)
 		n.Parent.RemoveChild(n)
 		return val
@@ -741,13 +763,23 @@ var xxx = map[string]map[string]string{
 		"class": "table table-sm",
 	},
 	"blockquote": {
-		"class": "blockquote border-left border-left-thick pl-3 text-dark",
+		"class": "blockquote border-left border-left-thick pl-3",
 	},
 	"pre": {
 		"class": "p-1 bg-light border",
 	},
 	"code": {
-		"class": "p-1 bg-light text-dark",
+		"class": "p-1 bg-light",
+	},
+	"h1": {
+		// no top margin
+		"class": "h2 mb-3 font-weight-bold",
+	},
+	"h2": {
+		"class": "h4 mt-4 mb-4 font-weight-bold",
+	},
+	"h3": {
+		"class": "h5 mt-4 mb-4 font-weight-bold",
 	},
 }
 
@@ -791,6 +823,10 @@ func ToHTML(r io.Reader, w io.Writer) (map[string]interface{}, error) {
 	meta := make(map[string]interface{})
 	if title := extractTitle(root); title != "" {
 		meta["title"] = title
+	}
+
+	if desc := extractSubtitle(root); desc != "" {
+		meta["description"] = desc
 	}
 
 	convertSpan(root)
