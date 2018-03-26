@@ -20,6 +20,13 @@ func IsGoogleDoc(f *drive.File) bool {
 type WalkFunc func(srv *drive.Service, path string, info *drive.File, err error) error
 
 func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) error {
+	// search returns trashed files...
+	// skip them
+	// TODO: can search just skip these automatically?
+	if info.Trashed {
+		return nil
+	}
+
 	err := walkFn(srv, path, info, nil)
 	if err != nil {
 		if IsDir(info) && err != filepath.SkipDir {
@@ -40,6 +47,10 @@ func walk(srv *drive.Service, path string, info *drive.File, walkFn WalkFunc) er
 	}
 
 	for _, fileInfo := range names.Files {
+		// skip trashed files
+		if fileInfo.Trashed {
+			continue
+		}
 		filename := filepath.Join(path, fileInfo.Name)
 		if err != nil {
 			if err := walkFn(srv, filename, fileInfo, err); err != nil && err != filepath.SkipDir {

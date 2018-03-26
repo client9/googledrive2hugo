@@ -16,7 +16,7 @@ import (
 
 	// for saving intermediate HTML.  The google generated html is
 	// compressed
-	"github.com/yosssi/gohtml"
+	"github.com/client9/htmlfmt"
 
 	// for converting gdoc filename to something same
 	"github.com/gohugoio/hugo/helpers"
@@ -53,7 +53,7 @@ func init() {
 
 // sample WalkFn
 func printer(srv *drive.Service, path string, info *drive.File, err error) error {
-
+	origpath := path
 	if err != nil {
 		log.Printf("Error on %q, %s", path, err)
 		return nil
@@ -61,7 +61,8 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 
 	if *flagSanitize {
 		// PathSpec is a complicated object, but the part we need
-		// is simple.  Ideally rip it out of hugo (or make independent function)
+		// is simple.  Ideally rip it out of hugo
+		// (or make independent function)
 		pspec := helpers.PathSpec{}
 		path = pspec.URLize(path)
 	}
@@ -82,10 +83,10 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 
 	// if not a google doc, skip (or if directory allow Walk to descend)
 	if !googledrive2hugo.IsGoogleDoc(info) {
-		log.Printf("Skipping %s", path)
+		log.Printf("Skipping %s is not a google doc", path)
 		return nil
 	}
-
+	log.Printf("Reading %q", origpath)
 	reader, err := googledrive2hugo.ExportHTML(srv, info)
 	if err != nil {
 		log.Printf("WARNING: unable to export %s: %s", path, err)
@@ -111,7 +112,7 @@ func printer(srv *drive.Service, path string, info *drive.File, err error) error
 		}
 		log.Printf("Writing HTML: %s", htmlpath)
 
-		rawhtml := gohtml.FormatBytes(rawhtml)
+		rawhtml := htmlfmt.FormatBytes(rawhtml, "", "  ")
 		if err = ioutil.WriteFile(htmlpath, rawhtml, 0644); err != nil {
 			return err
 		}
