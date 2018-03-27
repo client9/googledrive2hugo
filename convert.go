@@ -816,20 +816,20 @@ var xxx = map[string]map[string]string{
 		"class": "blockquote border-left border-left-thick pl-3",
 	},
 	"pre": {
-		"class": "p-1 bg-light border",
+		"class": "p-1 pl-3",
 	},
 	"code": {
-		"class": "p-1 bg-light",
+		"class": "p-1",
 	},
 	"h1": {
 		// no top margin
-		"class": "h2 mb-3 font-weight-bold",
+		"class": "h2 mb-3",
 	},
 	"h2": {
-		"class": "h4 mt-4 mb-4 font-weight-bold",
+		"class": "h4 mt-4 mb-4",
 	},
 	"h3": {
-		"class": "h5 mt-4 mb-4 font-weight-bold",
+		"class": "h5 mt-4 mb-4",
 	},
 }
 
