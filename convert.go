@@ -176,7 +176,7 @@ func getTextContent(n *html.Node) string {
 		// it has no style or attributes
 
 		if c.DataAtom == atom.Span && c.FirstChild == nil && len(c.Attr) == 0 {
-			out += " "
+			out += "X"
 			continue
 		}
 
@@ -230,7 +230,7 @@ func isCodeWrapper(n *html.Node) (bool, string) {
 	return true, text.Data
 }
 
-// must be a <span> with all children must be text nodes or <br>
+// must be a <span> and all children are text nodes or <br>
 func isTextWrapper(n *html.Node) bool {
 	if n.Type != html.ElementNode || n.DataAtom != atom.Span {
 		return false
@@ -239,7 +239,6 @@ func isTextWrapper(n *html.Node) bool {
 		if c.Type == html.TextNode {
 			continue
 		}
-
 		if c.Type == html.ElementNode && c.DataAtom == atom.Br {
 			continue
 		}
@@ -405,6 +404,11 @@ func convertBlockquote(n *html.Node) {
 // converts span wrappers to a series of <b><i><code> elements
 func convertSpan(n *html.Node) *html.Node {
 	next := n.NextSibling
+
+	// useless span tag wrapping an anchor
+	// before: <span><a href="...">txt</a></span>
+	// after  :<a href="...">txt</a>
+	//
 	if isLinkWrapper(n) {
 		link := n.FirstChild
 		fixHrefAttr(link)
@@ -415,17 +419,35 @@ func convertSpan(n *html.Node) *html.Node {
 		parent.RemoveChild(n)
 		return next
 	}
+
+	// span that encodes some style and only has text or <br> children
+	// after : <span style="...">text</span>
+	// before: <b><i>text</i></b>
+	//
 	if isTextWrapper(n) {
 		text := getTextChildren(n)
+		// span tag with style, and no children
+		// often seen in line breaks like
+		//
+		// <p style="..."><span style="..."></span></p>
+		//
+		// delete the span.  The remaining <p></p> will get
+		// zapped later.
+		//
 		if text == "" {
 			n.Parent.RemoveChild(n)
 			return next
 		}
-		style := getStyleAttr(n)
+
+		// create a new text node
 		newNode := &html.Node{
 			Type: html.TextNode,
 			Data: text,
 		}
+
+		// based on style wrap the text node with appropriate
+		// tags
+		style := getStyleAttr(n)
 		if isStyleItalics(style) {
 			wrapper := &html.Node{
 				Type:     html.ElementNode,
@@ -471,11 +493,13 @@ func convertSpan(n *html.Node) *html.Node {
 			wrapper.AppendChild(newNode)
 			newNode = wrapper
 		}
+
 		parent := n.Parent
 		parent.InsertBefore(newNode, n)
 		parent.RemoveChild(n)
 		return next
 	}
+
 	c := n.FirstChild
 	for c != nil {
 		c = convertSpan(c)
@@ -738,7 +762,7 @@ func createFrontMatter(root *html.Node) {
 
 	// no front matter
 	if fStart == nil {
-		log.Printf("Did not find front matter start")
+		log.Printf("OK - did not find front matter start")
 		return
 	}
 
@@ -839,13 +863,8 @@ func unescapeShortcodes(buf []byte, w io.Writer) error {
 	return err
 }
 
-func ToHTML(r io.Reader, w io.Writer) (map[string]interface{}, error) {
-	root, err := html.Parse(r)
-	if err != nil {
-		return nil, err
-	}
-
-	root = getBody(root)
+// if you already have a google doc node
+func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	meta := make(map[string]interface{})
 	if title := extractTitle(root); title != "" {
 		meta["title"] = title
@@ -866,11 +885,42 @@ func ToHTML(r io.Reader, w io.Writer) (map[string]interface{}, error) {
 	createFrontMatter(root)
 
 	fixAttr(root)
-
 	buf := bytes.Buffer{}
-	if err = renderChildren(&buf, root); err != nil {
+	if err := renderChildren(&buf, root); err != nil {
 		return nil, err
 	}
-	err = unescapeShortcodes(buf.Bytes(), w)
+	err := unescapeShortcodes(buf.Bytes(), w)
 	return meta, err
+}
+
+func parseFragment(src string) (string, map[string]interface{}, error) {
+	body := &html.Node{
+		Type:     html.ElementNode,
+		Data:     "body",
+		DataAtom: atom.Body,
+	}
+	r := strings.NewReader(src)
+	buf := bytes.Buffer{}
+	nodes, err := html.ParseFragment(r, body)
+	if err != nil {
+		return "", nil, err
+	}
+	for _, n := range nodes {
+		body.AppendChild(n)
+	}
+	meta, err := fromNode(body, &buf)
+	if err != nil {
+		return "", nil, err
+	}
+	return buf.String(), meta, nil
+}
+
+func ToHTML(r io.Reader, w io.Writer) (map[string]interface{}, error) {
+	root, err := html.Parse(r)
+	if err != nil {
+		return nil, err
+	}
+
+	root = getBody(root)
+	return fromNode(root, w)
 }
