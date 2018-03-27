@@ -9,11 +9,13 @@ import (
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
+
+	"github.com/client9/htmlfmt"
 )
 
 func renderChildren(w io.Writer, root *html.Node) error {
 	for c := root.FirstChild; c != nil; c = c.NextSibling {
-		if err := html.Render(w, c); err != nil {
+		if err := htmlfmt.Render(w, c, "", ""); err != nil {
 			return err
 		}
 	}
@@ -133,7 +135,7 @@ func removeStyleAttr(n *html.Node) {
 	n.Attr = n.Attr[:idx]
 }
 
-// remove empty Spans
+// remove all attributes
 func stripAttr(n *html.Node) {
 	removeStyleAttr(n)
 	//	n.Attr = nil
@@ -169,6 +171,15 @@ func getTextContent(n *html.Node) string {
 		return n.Data
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		// somehow gdoc occassionally inserts a
+		// <span></span> which indicates a space
+		// it has no style or attributes
+
+		if c.DataAtom == atom.Span && c.FirstChild == nil && len(c.Attr) == 0 {
+			out += " "
+			continue
+		}
+
 		out += getTextContent(c)
 	}
 	return out
@@ -176,13 +187,22 @@ func getTextContent(n *html.Node) string {
 
 // non-recursive
 func getTextChildren(n *html.Node) string {
+	// somehow gdoc occassionally inserts a
+	// <span></span> which indicates a space
+	// it has no style or attributes
+
+	if n.DataAtom == atom.Span && n.FirstChild == nil && len(n.Attr) == 0 {
+		return " "
+	}
 	out := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.TextNode {
 			out += c.Data
+			continue
 		}
 		if c.Type == html.ElementNode && c.DataAtom == atom.Br {
 			out += "\n"
+			continue
 		}
 	}
 	return out
@@ -210,7 +230,7 @@ func isCodeWrapper(n *html.Node) (bool, string) {
 	return true, text.Data
 }
 
-// all children must be text nodes or <br>
+// must be a <span> with all children must be text nodes or <br>
 func isTextWrapper(n *html.Node) bool {
 	if n.Type != html.ElementNode || n.DataAtom != atom.Span {
 		return false
@@ -249,6 +269,11 @@ func removeAllChildren(n *html.Node) {
 		c = n.FirstChild
 	}
 }
+
+// isEmpty returns true if <p></p> or <a></a> is found
+// <p></p> is used a typically unintended line spaces
+// <a></a> is in docs for unknown reasons
+//
 func isEmpty(n *html.Node) bool {
 	if n.Type != html.ElementNode || n.FirstChild != nil {
 		return false
@@ -260,6 +285,7 @@ func isEmpty(n *html.Node) bool {
 	}
 	return false
 }
+
 func removeEmptyTags(n *html.Node) *html.Node {
 	next := n.NextSibling
 	if isEmpty(n) {
