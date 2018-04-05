@@ -2,5 +2,5 @@
 set -ex
 
 #go build ./...
-go install ./cmd/gdoc-export
 go test .
+go install ./cmd/gdoc-export

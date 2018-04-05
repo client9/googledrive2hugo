@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"log"
-	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -168,21 +167,22 @@ func reparentCodeChildren(newParent, oldParent *html.Node) {
 func getTextContent(n *html.Node) string {
 	out := ""
 	if n.Type == html.TextNode {
-		return n.Data
+		return removeNbsp(n.Data)
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		// somehow gdoc occassionally inserts a
-		// <span></span> which indicates a space
-		// it has no style or attributes
-
-		if c.DataAtom == atom.Span && c.FirstChild == nil && len(c.Attr) == 0 {
-			out += "X"
-			continue
-		}
-
 		out += getTextContent(c)
 	}
 	return out
+}
+
+// remove non-breaking spaces.  Unclear why google adds them or how
+// they get added.
+func removeNbsp(src string) string {
+	if strings.Contains(src, "\u00a0") {
+		log.Printf("Replacing %q", src)
+		log.Printf("      now %q", strings.Replace(src, "\u00a0", " ", -1))
+	}
+	return strings.Replace(src, "\u00a0", " ", -1)
 }
 
 // non-recursive
@@ -197,7 +197,7 @@ func getTextChildren(n *html.Node) string {
 	out := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.TextNode {
-			out += c.Data
+			out += removeNbsp(c.Data)
 			continue
 		}
 		if c.Type == html.ElementNode && c.DataAtom == atom.Br {
@@ -404,6 +404,11 @@ func convertBlockquote(n *html.Node) {
 // converts span wrappers to a series of <b><i><code> elements
 func convertSpan(n *html.Node) *html.Node {
 	next := n.NextSibling
+
+	if n.Type == html.TextNode && strings.Contains(n.Data, "\u00a0") {
+		n.Data = removeNbsp(n.Data)
+		return next
+	}
 
 	// useless span tag wrapping an anchor
 	// before: <span><a href="...">txt</a></span>
@@ -847,22 +852,6 @@ func fixAttr(n *html.Node) {
 	}
 }
 
-func unescape(buf []byte) []byte {
-	return []byte(html.UnescapeString(string(buf)))
-}
-
-// unescapeShortcode:
-// From:
-//  {{&lt; instgram &#34;8203823&#34; &lt;}}
-//
-// To:
-//  {{< instagram "8203823" >}}
-func unescapeShortcodes(buf []byte, w io.Writer) error {
-	re := regexp.MustCompile(`{{&lt;.*&gt;}}`)
-	_, err := w.Write(re.ReplaceAllFunc(buf, unescape))
-	return err
-}
-
 // if you already have a google doc node
 func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	meta := make(map[string]interface{})
@@ -871,6 +860,7 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	}
 
 	if desc := extractSubtitle(root); desc != "" {
+		log.Printf("Description = %q", desc)
 		meta["description"] = desc
 	}
 
