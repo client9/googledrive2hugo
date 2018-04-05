@@ -625,6 +625,13 @@ func fixCodeBlock(n *html.Node) {
 			continue
 		}
 
+		// we have <p><code>
+		// we don't support tables or list of codes
+		if c.Parent.DataAtom == atom.Td || c.Parent.DataAtom == atom.Li {
+			c = next
+			continue
+		}
+
 		// we have a <p><code> and we have an existing code block
 		if textNode != nil {
 			n.RemoveChild(c)
@@ -633,7 +640,8 @@ func fixCodeBlock(n *html.Node) {
 			continue
 		}
 
-		// we have <p><code>.  Create new <pre><code> block
+		// we have <p><code>.
+		// Create new <pre><code> block
 		textNode = &html.Node{
 			Type: html.TextNode,
 			Data: code + "\n",
@@ -823,9 +831,11 @@ var xxx = map[string]map[string]string{
 	"pre": {
 		"class": "p-1 pl-3",
 	},
-	"code": {
-		"class": "p-1",
-	},
+	/*
+		"code": {
+			"class": "p-1",
+		},
+	*/
 	"h1": {
 		// no top margin
 		"class": "h2 mb-3",
