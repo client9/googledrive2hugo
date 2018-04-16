@@ -1,7 +1,6 @@
 package googledrive2hugo
 
 import (
-	"io"
 	"regexp"
 
 	"golang.org/x/net/html"
@@ -30,9 +29,8 @@ func unescape(buf []byte) []byte {
 //  {{< instagram "8203823" >}}
 //  {{% instagram "8203823" %}}
 //
-func unescapeShortcodes(buf []byte, w io.Writer) error {
+func unescapeShortcodes(buf []byte) []byte {
 	buf = reShortCode1.ReplaceAllFunc(buf, unescape)
 	buf = reShortCode2.ReplaceAllFunc(buf, unescape)
-	_, err := w.Write(buf)
-	return err
+	return buf
 }

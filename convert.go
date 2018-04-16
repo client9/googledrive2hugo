@@ -826,16 +826,11 @@ var xxx = map[string]map[string]string{
 		"class": "table table-sm",
 	},
 	"blockquote": {
-		"class": "blockquote border-left border-left-thick pl-3",
+		"class": "pl-3 lines-dense",
 	},
 	"pre": {
-		"class": "p-1 pl-3",
+		"class": "p-1 pl-3 lines-dense",
 	},
-	/*
-		"code": {
-			"class": "p-1",
-		},
-	*/
 	"h1": {
 		// no top margin
 		"class": "h2 mb-3",
@@ -889,7 +884,14 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	if err := renderChildren(&buf, root); err != nil {
 		return nil, err
 	}
-	err := unescapeShortcodes(buf.Bytes(), w)
+
+	// final fixups
+	out := buf.Bytes()
+	out = unescapeShortcodes(out)
+	out = unescapeEntities(out)
+
+	_, err := w.Write(out)
+
 	return meta, err
 }
 
