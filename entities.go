@@ -9,7 +9,7 @@ import (
 // We need to unescape shortcodes
 
 var (
-	reEntities = regexp.MustCompile(`&lt;#[0-9]+;`)
+	reEntities = regexp.MustCompile(`&amp;#[0-9]+;`)
 )
 
 // unescapeShortcode:
