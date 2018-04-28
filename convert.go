@@ -15,6 +15,7 @@ import (
 var (
 	selectorTitle    = cascadia.MustCompile("p[class~=title]")
 	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
+	selectorCode     = cascadia.MustCompile("code")
 )
 
 func isStyleIndent(s string) bool {
@@ -132,14 +133,9 @@ func stripAttr(n *html.Node) {
 
 // Reparent <code> children
 func reparentCodeChildren(newParent, oldParent *html.Node) {
-	for c := oldParent.FirstChild; c != nil; c = oldParent.FirstChild {
-		if c.DataAtom == atom.Code {
-			reparentCodeChildren(newParent, c)
-			oldParent.RemoveChild(c)
-			continue
-		}
-		oldParent.RemoveChild(c)
-		newParent.AppendChild(c)
+	nodes := selectorCode.MatchAll(oldParent)
+	for _, n := range nodes {
+		reparentChildren(newParent, n)
 	}
 }
 
@@ -158,10 +154,6 @@ func getTextContent(n *html.Node) string {
 // remove non-breaking spaces.  Unclear why google adds them or how
 // they get added.
 func removeNbsp(src string) string {
-	if strings.Contains(src, "\u00a0") {
-		log.Printf("Replacing %q", src)
-		log.Printf("      now %q", strings.Replace(src, "\u00a0", " ", -1))
-	}
 	return strings.Replace(src, "\u00a0", " ", -1)
 }
 
