@@ -8,18 +8,7 @@ import (
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
-
-	"github.com/client9/htmlfmt"
 )
-
-func renderChildren(w io.Writer, root *html.Node) error {
-	for c := root.FirstChild; c != nil; c = c.NextSibling {
-		if err := htmlfmt.Render(w, c, "", ""); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func isStyleIndent(s string) bool {
 	// could be contains margin-left && not margin-left:0
@@ -143,13 +132,6 @@ func stripAttr(n *html.Node) {
 	}
 }
 
-func reparentChildren(newParent, oldParent *html.Node) {
-	for c := oldParent.FirstChild; c != nil; c = oldParent.FirstChild {
-		oldParent.RemoveChild(c)
-		newParent.AppendChild(c)
-	}
-}
-
 // Reparent <code> children
 func reparentCodeChildren(newParent, oldParent *html.Node) {
 	for c := oldParent.FirstChild; c != nil; c = oldParent.FirstChild {
@@ -261,14 +243,6 @@ func isLinkWrapper(n *html.Node) bool {
 	return link.Type == html.ElementNode && link.DataAtom == atom.A
 }
 
-func removeAllChildren(n *html.Node) {
-	c := n.FirstChild
-	for c != nil {
-		n.RemoveChild(c)
-		c = n.FirstChild
-	}
-}
-
 // isEmpty returns true if <p></p> or <a></a> is found
 // <p></p> is used a typically unintended line spaces
 // <a></a> is in docs for unknown reasons
@@ -327,10 +301,7 @@ func convertPre(n *html.Node) {
 
 		// we have a <p><code> and we have an existing code block
 		if pre != nil {
-			pre.AppendChild(&html.Node{
-				Type: html.TextNode,
-				Data: "\n",
-			})
+			pre.AppendChild(newTextNode("\n"))
 			n.RemoveChild(c)
 			reparentCodeChildren(pre, c)
 			c = next
@@ -338,16 +309,8 @@ func convertPre(n *html.Node) {
 		}
 
 		// we have <p><code>.  Create new <pre><code> block
-		bq := &html.Node{
-			Type:     html.ElementNode,
-			DataAtom: atom.Blockquote,
-			Data:     "blockquote",
-		}
-		pre = &html.Node{
-			Type:     html.ElementNode,
-			DataAtom: atom.Pre,
-			Data:     "pre",
-		}
+		bq := newElementNode("blockquote")
+		pre = newElementNode("pre")
 		bq.AppendChild(pre)
 
 		n.InsertBefore(bq, c)
@@ -376,11 +339,7 @@ func convertBlockquote(n *html.Node) {
 			n.RemoveChild(c)
 			//bq.AppendChild(c)
 
-			bq.AppendChild(&html.Node{
-				Type:     html.ElementNode,
-				DataAtom: atom.Br,
-				Data:     "br",
-			})
+			bq.AppendChild(newElementNode("br"))
 			reparentChildren(bq, c)
 			c = next
 			continue
@@ -388,11 +347,7 @@ func convertBlockquote(n *html.Node) {
 
 		// we have <p margin-left:36pt>
 		//  create new blockquote
-		bq = &html.Node{
-			Type:     html.ElementNode,
-			DataAtom: atom.Blockquote,
-			Data:     "blockquote",
-		}
+		bq = newElementNode("blockquote")
 		n.InsertBefore(bq, c)
 		n.RemoveChild(c)
 		//bq.AppendChild(c)
@@ -445,56 +400,33 @@ func convertSpan(n *html.Node) *html.Node {
 		}
 
 		// create a new text node
-		newNode := &html.Node{
-			Type: html.TextNode,
-			Data: text,
-		}
+		newNode := newTextNode(text)
 
 		// based on style wrap the text node with appropriate
 		// tags
 		style := getStyleAttr(n)
 		if isStyleItalics(style) {
-			wrapper := &html.Node{
-				Type:     html.ElementNode,
-				DataAtom: atom.Em,
-				Data:     "em",
-			}
+			wrapper := newElementNode("em")
 			wrapper.AppendChild(newNode)
 			newNode = wrapper
 		}
 		if isStyleBold(style) {
-			wrapper := &html.Node{
-				Type:     html.ElementNode,
-				DataAtom: atom.Strong,
-				Data:     "strong",
-			}
+			wrapper := newElementNode("strong")
 			wrapper.AppendChild(newNode)
 			newNode = wrapper
 		}
 		if isStyleUnderline(style) {
-			wrapper := &html.Node{
-				Type:     html.ElementNode,
-				DataAtom: atom.U,
-				Data:     "u",
-			}
+			wrapper := newElementNode("u")
 			wrapper.AppendChild(newNode)
 			newNode = wrapper
 		}
 		if isStyleStrikethrough(style) {
-			wrapper := &html.Node{
-				Type:     html.ElementNode,
-				DataAtom: atom.Del,
-				Data:     "del",
-			}
+			wrapper := newElementNode("del")
 			wrapper.AppendChild(newNode)
 			newNode = wrapper
 		}
 		if isStyleCode(style) {
-			wrapper := &html.Node{
-				Type:     html.ElementNode,
-				DataAtom: atom.Code,
-				Data:     "code",
-			}
+			wrapper := newElementNode("code")
 			wrapper.AppendChild(newNode)
 			newNode = wrapper
 		}
@@ -549,18 +481,11 @@ func fixTableNode(table *html.Node) {
 		td.Data = "th"
 		td.DataAtom = atom.Th
 		removeAllChildren(td)
-		td.AppendChild(&html.Node{
-			Type: html.TextNode,
-			Data: text,
-		})
+		td.AppendChild(newTextNode(text))
 	}
 
 	// move tr from tbody to new thead
-	thead := &html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.Thead,
-		Data:     "thead",
-	}
+	thead := newElementNode("thead")
 	tbody.RemoveChild(tr)
 	thead.AppendChild(tr)
 	table.InsertBefore(thead, tbody)
@@ -579,10 +504,7 @@ func fixTableNode(table *html.Node) {
 			td.DataAtom = atom.Th
 			td.Data = "th"
 			removeAllChildren(td)
-			td.AppendChild(&html.Node{
-				Type: html.TextNode,
-				Data: text,
-			})
+			td.AppendChild(newTextNode(text))
 		}
 	}
 }
@@ -642,20 +564,9 @@ func fixCodeBlock(n *html.Node) {
 
 		// we have <p><code>.
 		// Create new <pre><code> block
-		textNode = &html.Node{
-			Type: html.TextNode,
-			Data: code + "\n",
-		}
-		codeNode := &html.Node{
-			Type:     html.ElementNode,
-			DataAtom: atom.Code,
-			Data:     "code",
-		}
-		preNode := &html.Node{
-			Type:     html.ElementNode,
-			DataAtom: atom.Pre,
-			Data:     "pre",
-		}
+		textNode = newTextNode(code + "\n")
+		codeNode := newElementNode("code")
+		preNode := newElementNode("pre")
 		codeNode.AppendChild(textNode)
 		preNode.AppendChild(codeNode)
 		n.InsertBefore(preNode, c)
@@ -686,15 +597,6 @@ func getBody(root *html.Node) *html.Node {
 		return root
 	}
 	return body
-}
-
-func getClassAttr(root *html.Node) string {
-	for _, attr := range root.Attr {
-		if attr.Key == "class" {
-			return attr.Val
-		}
-	}
-	return ""
 }
 
 // is paragraph a title
@@ -815,10 +717,7 @@ func createFrontMatter(root *html.Node) {
 	}
 
 	// insert front matter as first element
-	root.InsertBefore(&html.Node{
-		Type: html.TextNode,
-		Data: front,
-	}, root.FirstChild)
+	root.InsertBefore(newTextNode(front), root.FirstChild)
 }
 
 var xxx = map[string]map[string]string{
@@ -896,11 +795,7 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 }
 
 func parseFragment(src string) (string, map[string]interface{}, error) {
-	body := &html.Node{
-		Type:     html.ElementNode,
-		Data:     "body",
-		DataAtom: atom.Body,
-	}
+	body := newElementNode("body")
 	r := strings.NewReader(src)
 	buf := bytes.Buffer{}
 	nodes, err := html.ParseFragment(r, body)
