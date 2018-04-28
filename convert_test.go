@@ -67,7 +67,7 @@ func TestGetTextChildren(t *testing.T) {
 		Data:     "span",
 		DataAtom: atom.Span,
 	}
-	text := getTextChildren(span)
+	text := getTextContent(span)
 	if text != " " {
 		t.Errorf("expected empty span to be convert to a space")
 	}

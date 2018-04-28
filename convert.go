@@ -139,45 +139,34 @@ func reparentCodeChildren(newParent, oldParent *html.Node) {
 	}
 }
 
-// recursive
+// recursive, with special rules for gDoc
 func getTextContent(n *html.Node) string {
-	out := ""
 	if n.Type == html.TextNode {
-		return removeNbsp(n.Data)
+		return n.Data
 	}
+
+	// somehow gdoc occassionally inserts a
+	// <span></span> which indicates a space
+	// it has no style or attributes
+	if n.DataAtom == atom.Span && n.FirstChild == nil && len(n.Attr) == 0 {
+		return " "
+	}
+
+	if n.Type == html.ElementNode && n.DataAtom == atom.Br {
+		return "\n"
+	}
+
+	out := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		out += getTextContent(c)
 	}
-	return out
+	return removeNbsp(out)
 }
 
 // remove non-breaking spaces.  Unclear why google adds them or how
 // they get added.
 func removeNbsp(src string) string {
 	return strings.Replace(src, "\u00a0", " ", -1)
-}
-
-// non-recursive
-func getTextChildren(n *html.Node) string {
-	// somehow gdoc occassionally inserts a
-	// <span></span> which indicates a space
-	// it has no style or attributes
-
-	if n.DataAtom == atom.Span && n.FirstChild == nil && len(n.Attr) == 0 {
-		return " "
-	}
-	out := ""
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.TextNode {
-			out += removeNbsp(c.Data)
-			continue
-		}
-		if c.Type == html.ElementNode && c.DataAtom == atom.Br {
-			out += "\n"
-			continue
-		}
-	}
-	return out
 }
 
 // assumes <span style=font-family=monospace> has been convert to <code>
@@ -375,7 +364,7 @@ func convertSpan(n *html.Node) *html.Node {
 	// before: <b><i>text</i></b>
 	//
 	if isTextWrapper(n) {
-		text := getTextChildren(n)
+		text := getTextContent(n)
 		// span tag with style, and no children
 		// often seen in line breaks like
 		//
@@ -499,6 +488,7 @@ func fixTableNode(table *html.Node) {
 	}
 }
 
+// gdoc puts a <p> inside each <td>.  Remove the unnecessary <p> tag.
 func fixTableCells(n *html.Node) {
 	child := n.FirstChild
 	if n.DataAtom == atom.Td && child.DataAtom == atom.P && child.NextSibling == nil {
@@ -601,7 +591,7 @@ func createFrontMatter(root *html.Node) {
 			break
 		}
 		if c.DataAtom == atom.P {
-			text := strings.TrimSpace(getTextChildren(c))
+			text := strings.TrimSpace(getTextContent(c))
 			if text == "" {
 				continue
 			}
@@ -638,7 +628,7 @@ func createFrontMatter(root *html.Node) {
 			fEnd = c
 			break
 		}
-		text := getTextChildren(c)
+		text := getTextContent(c)
 		front += text + "\n"
 		if text == "---" || text == "}" || text == "+++" {
 			fEnd = c
