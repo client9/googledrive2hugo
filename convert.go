@@ -18,6 +18,8 @@ var (
 	selectorCode     = cascadia.MustCompile("code")
 	selectorBold     = cascadia.MustCompile("b,strong")
 	selectorTable    = cascadia.MustCompile("table")
+	selectorTdP      = cascadia.MustCompile("td > p:only-child")
+	selectorEmpty    = cascadia.MustCompile("a:empty,p:empty")
 )
 
 func isStyleIndent(s string) bool {
@@ -225,33 +227,14 @@ func isLinkWrapper(n *html.Node) bool {
 	return link.Type == html.ElementNode && link.DataAtom == atom.A
 }
 
-// isEmpty returns true if <p></p> or <a></a> is found
+// remove some empty tags
 // <p></p> is used a typically unintended line spaces
 // <a></a> is in docs for unknown reasons
 //
-func isEmpty(n *html.Node) bool {
-	if n.Type != html.ElementNode || n.FirstChild != nil {
-		return false
-	}
-
-	switch n.DataAtom {
-	case atom.P, atom.A:
-		return true
-	}
-	return false
-}
-
-func removeEmptyTags(n *html.Node) *html.Node {
-	next := n.NextSibling
-	if isEmpty(n) {
+func removeEmptyTags(root *html.Node) {
+	for _, n := range selectorEmpty.MatchAll(root) {
 		n.Parent.RemoveChild(n)
-		return next
 	}
-	c := n.FirstChild
-	for c != nil {
-		c = removeEmptyTags(c)
-	}
-	return next
 }
 
 func isIndentedP(n *html.Node) bool {
@@ -484,14 +467,11 @@ func fixTableNode(table *html.Node) {
 }
 
 // gdoc puts a <p> inside each <td>.  Remove the unnecessary <p> tag.
-func fixTableCells(n *html.Node) {
-	child := n.FirstChild
-	if n.DataAtom == atom.Td && child.DataAtom == atom.P && child.NextSibling == nil {
-		n.RemoveChild(child)
-		reparentChildren(n, child)
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		fixTableCells(c)
+func fixTableCells(root *html.Node) {
+	for _, p := range selectorTdP.MatchAll(root) {
+		td := p.Parent
+		td.RemoveChild(p)
+		reparentChildren(td, p)
 	}
 }
 
