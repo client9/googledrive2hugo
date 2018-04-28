@@ -16,6 +16,8 @@ var (
 	selectorTitle    = cascadia.MustCompile("p[class~=title]")
 	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
 	selectorCode     = cascadia.MustCompile("code")
+	selectorBold     = cascadia.MustCompile("b,strong")
+	selectorTable    = cascadia.MustCompile("table")
 )
 
 func isStyleIndent(s string) bool {
@@ -170,6 +172,7 @@ func removeNbsp(src string) string {
 }
 
 // assumes <span style=font-family=monospace> has been convert to <code>
+// Must be <p><code>
 func isCodeWrapper(n *html.Node) (bool, string) {
 	if n.Type != html.ElementNode || n.DataAtom != atom.P {
 		return false, ""
@@ -424,15 +427,7 @@ func convertSpan(n *html.Node) *html.Node {
 }
 
 func hasBoldChildren(n *html.Node) bool {
-	if n.DataAtom == atom.B || n.DataAtom == atom.Strong {
-		return true
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if hasBoldChildren(c) {
-			return true
-		}
-	}
-	return false
+	return selectorBold.MatchFirst(n) != nil
 }
 
 // looks at first row to see if it is a header row, and if so
@@ -501,12 +496,9 @@ func fixTableCells(n *html.Node) {
 }
 
 // may turn first <tr> into a <thead><tr> and turn the <td> into <th>
-func fixTables(n *html.Node) {
-	if n.DataAtom == atom.Table {
+func fixTables(root *html.Node) {
+	for _, n := range selectorTable.MatchAll(root) {
 		fixTableNode(n)
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		fixTableNode(c)
 	}
 }
 
