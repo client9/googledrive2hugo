@@ -781,7 +781,7 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	stripAttr(root)
 	removeEmptyTags(root)
 	createFrontMatter(root)
-
+	unsmartCode(root)
 	fixAttr(root)
 	buf := bytes.Buffer{}
 	if err := renderChildren(&buf, root); err != nil {
