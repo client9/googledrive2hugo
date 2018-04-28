@@ -716,6 +716,10 @@ func createFrontMatter(root *html.Node) {
 		c = next
 	}
 
+	// remove any special typography that might have been used
+	// the front matter is code!
+	front = unsmart(front)
+
 	// insert front matter as first element
 	root.InsertBefore(newTextNode(front), root.FirstChild)
 }
