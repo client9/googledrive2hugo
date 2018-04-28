@@ -8,6 +8,13 @@ import (
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
+
+	"github.com/andybalholm/cascadia"
+)
+
+var (
+	selectorTitle    = cascadia.MustCompile("p[class~=title]")
+	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
 )
 
 func isStyleIndent(s string) bool {
@@ -57,15 +64,6 @@ func isStyleCode(s string) bool {
 		}
 	}
 	return false
-}
-
-func getStyleAttr(n *html.Node) string {
-	for _, attr := range n.Attr {
-		if attr.Key == "style" {
-			return attr.Val
-		}
-	}
-	return ""
 }
 
 func fixHrefAttr(n *html.Node) {
@@ -579,66 +577,23 @@ func fixCodeBlock(n *html.Node) {
 	}
 }
 
-func getBody1(n *html.Node) *html.Node {
-	if n.Type == html.ElementNode && n.DataAtom == atom.Body {
-		return n
+func extractTitle(root *html.Node) string {
+	n := selectorTitle.MatchFirst(root)
+	if n == nil {
+		return ""
 	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if body := getBody1(c); body != nil {
-			return body
-		}
-	}
-	return nil
+	val := getTextContent(n)
+	n.Parent.RemoveChild(n)
+	return val
 }
-
-func getBody(root *html.Node) *html.Node {
-	body := getBody1(root)
-	if body == nil {
-		return root
+func extractSubtitle(root *html.Node) string {
+	n := selectorSubtitle.MatchFirst(root)
+	if n == nil {
+		return ""
 	}
-	return body
-}
-
-// is paragraph a title
-func isTitleP(n *html.Node) bool {
-	return n.Type == html.ElementNode &&
-		n.DataAtom == atom.P &&
-		strings.Contains(getClassAttr(n), "title")
-}
-
-// paragraph a subtitle
-func isSubtitleP(n *html.Node) bool {
-	return n.Type == html.ElementNode &&
-		n.DataAtom == atom.P &&
-		strings.Contains(getClassAttr(n), "subtitle")
-}
-
-func extractTitle(n *html.Node) string {
-	if isTitleP(n) {
-		val := getTextContent(n)
-		n.Parent.RemoveChild(n)
-		return val
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if title := extractTitle(c); title != "" {
-			return title
-		}
-	}
-	return ""
-}
-
-func extractSubtitle(n *html.Node) string {
-	if isSubtitleP(n) {
-		val := getTextContent(n)
-		n.Parent.RemoveChild(n)
-		return val
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if title := extractTitle(c); title != "" {
-			return title
-		}
-	}
-	return ""
+	val := getTextContent(n)
+	n.Parent.RemoveChild(n)
+	return val
 }
 
 func createFrontMatter(root *html.Node) {
@@ -768,7 +723,6 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	}
 
 	if desc := extractSubtitle(root); desc != "" {
-		log.Printf("Description = %q", desc)
 		meta["description"] = desc
 	}
 

@@ -8,8 +8,11 @@ import (
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 
+	"github.com/andybalholm/cascadia"
 	"github.com/client9/htmlfmt"
 )
+
+var selectorBody = cascadia.MustCompile("body")
 
 func newTextNode(data string) *html.Node {
 	return &html.Node{
@@ -72,4 +75,21 @@ func transformTextNodes(n *html.Node, fn func(string) string) {
 		}
 		transformTextNodes(c, fn)
 	}
+}
+
+func getBody(root *html.Node) *html.Node {
+	out := selectorBody.MatchFirst(root)
+	if out == nil {
+		out = root
+	}
+	return out
+}
+
+func getStyleAttr(n *html.Node) string {
+	for _, attr := range n.Attr {
+		if attr.Key == "style" {
+			return attr.Val
+		}
+	}
+	return ""
 }
