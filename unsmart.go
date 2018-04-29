@@ -15,7 +15,7 @@ var (
 
 func init() {
 	replacements := []string{
-
+		"\u00a0", " ", // non breaking space
 		"\u201c", `"`, // double quote open
 		"\u201d", `"`, // double quote close
 		"\u2018", "'", // single quote open
