@@ -2,8 +2,6 @@ package googledrive2hugo
 
 import (
 	"io"
-	"log"
-	//"github.com/yosssi/gohtml"
 )
 
 // Convert Google Doc HTML to Hugo Content HTML
@@ -28,9 +26,7 @@ func ConvertHTML(r io.Reader, fileMeta map[string]interface{}, w io.Writer) erro
 		return err
 	}
 
-	log.Printf("read complete")
 	MetaMerge(meta, contentMeta)
 	MetaMerge(meta, fileMeta)
-	log.Printf("meta complete")
 	return HugoContentWrite(content, meta, w)
 }

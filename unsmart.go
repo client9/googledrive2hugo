@@ -8,8 +8,10 @@ import (
 	"github.com/andybalholm/cascadia"
 )
 
-var unsmartReplacer *strings.Replacer
-var unsmartSelector cascadia.Selector
+var (
+	unsmartReplacer *strings.Replacer
+	unsmartSelector cascadia.Selector
+)
 
 func init() {
 	replacements := []string{
@@ -27,6 +29,7 @@ func init() {
 	}
 	unsmartReplacer = strings.NewReplacer(replacements...)
 	unsmartSelector = cascadia.MustCompile("code,var,kbd")
+
 }
 
 // pure function
@@ -34,7 +37,7 @@ func unsmart(s string) string {
 	return unsmartReplacer.Replace(s)
 }
 
-func unsmartCode(root *html.Node) {
+func UnsmartCode(root *html.Node) {
 	for _, n := range unsmartSelector.MatchAll(root) {
 		transformTextNodes(n, unsmart)
 	}

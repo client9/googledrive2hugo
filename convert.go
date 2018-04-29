@@ -3,7 +3,6 @@ package googledrive2hugo
 import (
 	"bytes"
 	"io"
-	"log"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -16,10 +15,6 @@ var (
 	selectorTitle    = cascadia.MustCompile("p[class~=title]")
 	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
 	selectorCode     = cascadia.MustCompile("code")
-	selectorBold     = cascadia.MustCompile("b,strong")
-	selectorTable    = cascadia.MustCompile("table")
-	selectorTdP      = cascadia.MustCompile("td > p:only-child")
-	selectorEmpty    = cascadia.MustCompile("a:empty,p:empty")
 )
 
 func isStyleIndent(s string) bool {
@@ -89,57 +84,6 @@ func fixHrefAttr(n *html.Node) {
 			val = val[0:idx]
 		}
 		n.Attr[i].Val = val
-	}
-}
-
-func removeStyleAttr(n *html.Node) {
-	if n.Attr == nil {
-		return
-	}
-	idx := 0
-	for i := 0; i < len(n.Attr); i++ {
-		switch n.Attr[i].Key {
-		case "href":
-			// needed for <a> and others
-			n.Attr[idx] = n.Attr[i]
-			idx++
-		case "colspan", "rowspan":
-			// gdoc does a lot of <td rowspan=1 colspan=1
-			// which is not needed
-			if n.Attr[i].Val != "1" {
-				n.Attr[idx] = n.Attr[i]
-				idx++
-			}
-		case "id":
-			// preserver ID is headings.  Used for internal linking
-			// hack for h1..h6.  includes hr too but
-			//  thats ok
-			if len(n.Data) == 2 && n.Data[0] == 'h' {
-				n.Attr[idx] = n.Attr[i]
-				idx++
-			}
-		default:
-			continue
-		}
-	}
-	// remove any junk at end
-	n.Attr = n.Attr[:idx]
-}
-
-// remove all attributes
-func stripAttr(n *html.Node) {
-	removeStyleAttr(n)
-	//	n.Attr = nil
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		stripAttr(c)
-	}
-}
-
-// Reparent <code> children
-func reparentCodeChildren(newParent, oldParent *html.Node) {
-	nodes := selectorCode.MatchAll(oldParent)
-	for _, n := range nodes {
-		reparentChildren(newParent, n)
 	}
 }
 
@@ -227,16 +171,6 @@ func isLinkWrapper(n *html.Node) bool {
 	return link.Type == html.ElementNode && link.DataAtom == atom.A
 }
 
-// remove some empty tags
-// <p></p> is used a typically unintended line spaces
-// <a></a> is in docs for unknown reasons
-//
-func removeEmptyTags(root *html.Node) {
-	for _, n := range selectorEmpty.MatchAll(root) {
-		n.Parent.RemoveChild(n)
-	}
-}
-
 func isIndentedP(n *html.Node) bool {
 	return n.Type == html.ElementNode && n.DataAtom == atom.P &&
 		isStyleIndent(getStyleAttr(n))
@@ -252,6 +186,13 @@ func isIndentedCode(n *html.Node) bool {
 		code.DataAtom == atom.Code
 }
 
+// Reparent <code> children
+func reparentCodeChildren(newParent, oldParent *html.Node) {
+	nodes := selectorCode.MatchAll(oldParent)
+	for _, n := range nodes {
+		reparentChildren(newParent, n)
+	}
+}
 func convertPre(n *html.Node) {
 	var pre *html.Node
 	c := n.FirstChild
@@ -299,7 +240,7 @@ func convertBlockquote(n *html.Node) {
 			continue
 		}
 
-		// we have a <p><code> and we have an existing code block
+		// we have a <p margin-left:36pt> and we have an existing code block
 		if bq != nil {
 			n.RemoveChild(c)
 			//bq.AppendChild(c)
@@ -409,79 +350,6 @@ func convertSpan(n *html.Node) *html.Node {
 	return next
 }
 
-func hasBoldChildren(n *html.Node) bool {
-	return selectorBold.MatchFirst(n) != nil
-}
-
-// looks at first row to see if it is a header row, and if so
-// move it to a new thead, and change <td> to <th>
-func fixTableNode(table *html.Node) {
-	tbody := table.FirstChild
-
-	// probably should do a warning here.
-	// this table isn't what we expected.
-	if tbody == nil || tbody.DataAtom != atom.Tbody {
-		return
-	}
-
-	// we expect the first child to be a <tr>
-	//  if it's not, or if none of the subquent <td> are bold
-	//  then nothing to do.
-	tr := tbody.FirstChild
-	if tr == nil || tr.DataAtom != atom.Tr || !hasBoldChildren(tr) {
-		return
-	}
-
-	// convert TD to TH
-	for td := tr.FirstChild; td != nil; td = td.NextSibling {
-		text := getTextContent(td)
-		td.Data = "th"
-		td.DataAtom = atom.Th
-		removeAllChildren(td)
-		td.AppendChild(newTextNode(text))
-	}
-
-	// move tr from tbody to new thead
-	thead := newElementNode("thead")
-	tbody.RemoveChild(tr)
-	thead.AppendChild(tr)
-	table.InsertBefore(thead, tbody)
-
-	// DO FOOT
-
-	// get Last TR
-	// are TD bold?
-	// remove, create TFOOT, add TR
-
-	// how iterate  over remaining rows, checking first entry
-	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
-		td := tr.FirstChild
-		if td != nil && hasBoldChildren(td) {
-			text := getTextContent(td)
-			td.DataAtom = atom.Th
-			td.Data = "th"
-			removeAllChildren(td)
-			td.AppendChild(newTextNode(text))
-		}
-	}
-}
-
-// gdoc puts a <p> inside each <td>.  Remove the unnecessary <p> tag.
-func fixTableCells(root *html.Node) {
-	for _, p := range selectorTdP.MatchAll(root) {
-		td := p.Parent
-		td.RemoveChild(p)
-		reparentChildren(td, p)
-	}
-}
-
-// may turn first <tr> into a <thead><tr> and turn the <td> into <th>
-func fixTables(root *html.Node) {
-	for _, n := range selectorTable.MatchAll(root) {
-		fixTableNode(n)
-	}
-}
-
 func fixCodeBlock(n *html.Node) {
 	// scan child and merge adjacent <p><code> lines into one
 	var textNode *html.Node
@@ -550,125 +418,6 @@ func extractSubtitle(root *html.Node) string {
 	return val
 }
 
-func createFrontMatter(root *html.Node) {
-	var front string
-	var fStart *html.Node
-	var fEnd *html.Node
-
-	// find opening front matter
-	count := 0
-	for c := root.FirstChild; c != nil; c = c.NextSibling {
-		count++
-		if count > 5 {
-			break
-		}
-		if c.DataAtom == atom.P {
-			text := strings.TrimSpace(getTextContent(c))
-			if text == "" {
-				continue
-			}
-			if text == "---" || text == "{" || text == "+++" {
-				front = text + "\n"
-				fStart = c
-				break
-			}
-			break
-		}
-		if c.DataAtom == atom.Hr {
-			c.Data = "---"
-			c.DataAtom = 0
-			c.Type = html.TextNode
-			fStart = c
-			front = "---\n"
-			break
-		}
-	}
-
-	// no front matter
-	if fStart == nil {
-		log.Printf("OK - did not find front matter start")
-		return
-	}
-
-	// find ending
-	for c := fStart.NextSibling; c != nil; c = c.NextSibling {
-		if c.DataAtom != atom.Hr && c.DataAtom != atom.P {
-			break
-		}
-		if c.DataAtom == atom.Hr {
-			front += "---\n"
-			fEnd = c
-			break
-		}
-		text := getTextContent(c)
-		front += text + "\n"
-		if text == "---" || text == "}" || text == "+++" {
-			fEnd = c
-			break
-		}
-	}
-
-	// didn't find end
-	if fEnd == nil {
-		log.Printf("did not find front matter end")
-		return
-	}
-
-	// delete all the nodes up to and including fEnd
-	c := root.FirstChild
-	for {
-		next := c.NextSibling
-		root.RemoveChild(c)
-		if c == fEnd {
-			break
-		}
-		c = next
-	}
-
-	// remove any special typography that might have been used
-	// the front matter is code!
-	front = unsmart(front)
-
-	// insert front matter as first element
-	root.InsertBefore(newTextNode(front), root.FirstChild)
-}
-
-var xxx = map[string]map[string]string{
-	"table": {
-		"class": "table table-sm",
-	},
-	"blockquote": {
-		"class": "pl-3 lines-dense",
-	},
-	"pre": {
-		"class": "p-1 pl-3 lines-dense",
-	},
-	"h1": {
-		// no top margin
-		"class": "h2 mb-3",
-	},
-	"h2": {
-		"class": "h4 mt-4 mb-4",
-	},
-	"h3": {
-		"class": "h5 mt-4 mb-4",
-	},
-}
-
-func fixAttr(n *html.Node) {
-	if override := xxx[n.Data]; override != nil {
-		for k, v := range override {
-			n.Attr = append(n.Attr, html.Attribute{Key: k, Val: v})
-		}
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-
-		if c.Type == html.ElementNode {
-			fixAttr(c)
-		}
-	}
-}
-
 // if you already have a google doc node
 func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	meta := make(map[string]interface{})
@@ -680,17 +429,27 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 		meta["description"] = desc
 	}
 
+	tx := []func(*html.Node){
+		// gdoc specific
+		GdocTable,
+		GdocAttr,
+
+		// more generic
+		RemoveEmptyTags,
+		HugoFrontMatter,
+		UnsmartCode,
+		AddClassAttr,
+	}
+
+	// GDoc specific Transformations
 	convertSpan(root)
 	convertPre(root)
 	convertBlockquote(root)
 	fixCodeBlock(root)
-	fixTableCells(root)
-	fixTables(root)
-	stripAttr(root)
-	removeEmptyTags(root)
-	createFrontMatter(root)
-	unsmartCode(root)
-	fixAttr(root)
+
+	for _, fn := range tx {
+		fn(root)
+	}
 	buf := bytes.Buffer{}
 	if err := renderChildren(&buf, root); err != nil {
 		return nil, err
