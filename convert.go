@@ -226,42 +226,6 @@ func convertPre(n *html.Node) {
 	}
 }
 
-//  <p style="margin-left:36pt">
-func convertBlockquote(n *html.Node) {
-	var bq *html.Node
-
-	c := n.FirstChild
-	for c != nil {
-		next := c.NextSibling
-		if !isIndentedP(c) {
-			bq = nil
-			convertBlockquote(c)
-			c = next
-			continue
-		}
-
-		// we have a <p margin-left:36pt> and we have an existing code block
-		if bq != nil {
-			n.RemoveChild(c)
-			//bq.AppendChild(c)
-
-			bq.AppendChild(newElementNode("br"))
-			reparentChildren(bq, c)
-			c = next
-			continue
-		}
-
-		// we have <p margin-left:36pt>
-		//  create new blockquote
-		bq = newElementNode("blockquote")
-		n.InsertBefore(bq, c)
-		n.RemoveChild(c)
-		//bq.AppendChild(c)
-		reparentChildren(bq, c)
-		c = next
-	}
-}
-
 // converts span wrappers to a series of <b><i><code> elements
 func convertSpan(n *html.Node) *html.Node {
 	next := n.NextSibling
@@ -431,6 +395,10 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 
 	tx := []func(*html.Node){
 		// gdoc specific
+		// convert span
+		// convert pre
+		GdocBlockquote,
+		// fix codeBlock
 		GdocTable,
 		GdocAttr,
 
@@ -444,7 +412,6 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	// GDoc specific Transformations
 	convertSpan(root)
 	convertPre(root)
-	convertBlockquote(root)
 	fixCodeBlock(root)
 
 	for _, fn := range tx {
