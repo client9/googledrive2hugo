@@ -117,29 +117,6 @@ func removeNbsp(src string) string {
 	return strings.Replace(src, "\u00a0", " ", -1)
 }
 
-// assumes <span style=font-family=monospace> has been convert to <code>
-// Must be <p><code>
-func isCodeWrapper(n *html.Node) (bool, string) {
-	if n.Type != html.ElementNode || n.DataAtom != atom.P {
-		return false, ""
-	}
-
-	// if written in google-docs, then it's exactly one <code> inside <p>
-	// but if cut-n-paste, then it can be
-	// exactly one <code> inside <p>
-	code := n.FirstChild
-	if code == nil || code.NextSibling != nil || code.Type != html.ElementNode || code.DataAtom != atom.Code {
-		return false, ""
-	}
-
-	// figure out text content
-	text := code.FirstChild
-	if text == nil {
-		return true, "\n"
-	}
-	return true, text.Data
-}
-
 // must be a <span> and all children are text nodes or <br>
 func isTextWrapper(n *html.Node) bool {
 	if n.Type != html.ElementNode || n.DataAtom != atom.Span {
@@ -314,55 +291,6 @@ func convertSpan(n *html.Node) *html.Node {
 	return next
 }
 
-func fixCodeBlock(n *html.Node) {
-	// scan child and merge adjacent <p><code> lines into one
-	var textNode *html.Node
-	c := n.FirstChild
-	for c != nil {
-		next := c.NextSibling
-		isCode, code := isCodeWrapper(c)
-		if !isCode {
-			if textNode != nil {
-				textNode.Data = strings.Trim(textNode.Data, "\n")
-				textNode = nil
-			}
-			fixCodeBlock(c)
-			c = next
-			continue
-		}
-
-		// we have <p><code>
-		// we don't support tables or list of codes
-		if c.Parent.DataAtom == atom.Td || c.Parent.DataAtom == atom.Li {
-			c = next
-			continue
-		}
-
-		// we have a <p><code> and we have an existing code block
-		if textNode != nil {
-			n.RemoveChild(c)
-			textNode.Data += code + "\n"
-			c = next
-			continue
-		}
-
-		// we have <p><code>.
-		// Create new <pre><code> block
-		textNode = newTextNode(code + "\n")
-		codeNode := newElementNode("code")
-		preNode := newElementNode("pre")
-		codeNode.AppendChild(textNode)
-		preNode.AppendChild(codeNode)
-		n.InsertBefore(preNode, c)
-		n.RemoveChild(c)
-
-		c = next
-	}
-	if textNode != nil {
-		textNode.Data = strings.Trim(textNode.Data, "\n")
-	}
-}
-
 func extractTitle(root *html.Node) string {
 	n := selectorTitle.MatchFirst(root)
 	if n == nil {
@@ -398,7 +326,7 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 		// convert span
 		// convert pre
 		GdocBlockquote,
-		// fix codeBlock
+		GdocCodeBlock,
 		GdocTable,
 		GdocAttr,
 
@@ -412,7 +340,6 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 	// GDoc specific Transformations
 	convertSpan(root)
 	convertPre(root)
-	fixCodeBlock(root)
 
 	for _, fn := range tx {
 		fn(root)
