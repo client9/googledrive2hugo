@@ -14,13 +14,7 @@ import (
 var (
 	selectorTitle    = cascadia.MustCompile("p[class~=title]")
 	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
-	selectorCode     = cascadia.MustCompile("code")
 )
-
-func isStyleIndent(s string) bool {
-	// could be contains margin-left && not margin-left:0
-	return strings.Contains(s, "margin-left:36pt")
-}
 
 // recursive, with special rules for gDoc
 func getTextContent(n *html.Node) string {
@@ -50,61 +44,6 @@ func getTextContent(n *html.Node) string {
 // they get added.
 func removeNbsp(src string) string {
 	return strings.Replace(src, "\u00a0", " ", -1)
-}
-
-func isIndentedP(n *html.Node) bool {
-	return n.Type == html.ElementNode && n.DataAtom == atom.P &&
-		isStyleIndent(getStyleAttr(n))
-}
-
-func isIndentedCode(n *html.Node) bool {
-	if !isIndentedP(n) {
-		return false
-	}
-	code := n.FirstChild
-	return code != nil &&
-		code.Type == html.ElementNode &&
-		code.DataAtom == atom.Code
-}
-
-// Reparent <code> children
-func reparentCodeChildren(newParent, oldParent *html.Node) {
-	nodes := selectorCode.MatchAll(oldParent)
-	for _, n := range nodes {
-		reparentChildren(newParent, n)
-	}
-}
-func convertPre(n *html.Node) {
-	var pre *html.Node
-	c := n.FirstChild
-	for c != nil {
-		next := c.NextSibling
-		if !isIndentedCode(c) {
-			pre = nil
-			convertPre(c)
-			c = next
-			continue
-		}
-
-		// we have a <p><code> and we have an existing code block
-		if pre != nil {
-			pre.AppendChild(newTextNode("\n"))
-			n.RemoveChild(c)
-			reparentCodeChildren(pre, c)
-			c = next
-			continue
-		}
-
-		// we have <p><code>.  Create new <pre><code> block
-		bq := newElementNode("blockquote")
-		pre = newElementNode("pre")
-		bq.AppendChild(pre)
-
-		n.InsertBefore(bq, c)
-		n.RemoveChild(c)
-		reparentCodeChildren(pre, c)
-		c = next
-	}
 }
 
 func extractTitle(root *html.Node) string {
@@ -139,8 +78,8 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 
 	tx := []func(*html.Node){
 		// gdoc specific
-		// convert span
-		// convert pre
+		GdocSpan,
+		GdocBlockquotePre,
 		GdocBlockquote,
 		GdocCodeBlock,
 		GdocTable,
@@ -153,19 +92,17 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 		AddClassAttr,
 	}
 
-	// GDoc specific Transformations
-	convertSpan(root)
-	convertPre(root)
-
 	for _, fn := range tx {
 		fn(root)
 	}
+
+	// Render into buffer
 	buf := bytes.Buffer{}
 	if err := renderChildren(&buf, root); err != nil {
 		return nil, err
 	}
 
-	// final fixups
+	// final fixups.. needed to be done outside of tree
 	out := buf.Bytes()
 	out = unescapeShortcodes(out)
 	out = unescapeEntities(out)

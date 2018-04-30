@@ -3,40 +3,41 @@ package googledrive2hugo
 import (
 	"strings"
 
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
-	//"github.com/andybalholm/cascadia"
+)
+
+var (
+	selectorSpan = cascadia.MustCompile(`span`)
 )
 
 // converts span wrappers to a series of <b><i><code> elements
-func convertSpan(n *html.Node) *html.Node {
-	next := n.NextSibling
+func GdocSpan(root *html.Node) {
+	for _, n := range selectorSpan.MatchAll(root) {
 
-	if n.Type == html.TextNode && strings.Contains(n.Data, "\u00a0") {
-		n.Data = removeNbsp(n.Data)
-		return next
-	}
+		// useless span tag wrapping an anchor
+		// before: <span><a href="...">txt</a></span>
+		// after  :<a href="...">txt</a>
+		//
+		if isLinkWrapper(n) {
+			link := n.FirstChild
+			fixHrefAttr(link)
+			n.RemoveChild(link)
+			// promote link to main
+			parent := n.Parent
+			parent.InsertBefore(link, n)
+			parent.RemoveChild(n)
+			continue
+		}
 
-	// useless span tag wrapping an anchor
-	// before: <span><a href="...">txt</a></span>
-	// after  :<a href="...">txt</a>
-	//
-	if isLinkWrapper(n) {
-		link := n.FirstChild
-		fixHrefAttr(link)
-		n.RemoveChild(link)
-		// promote link to main
-		parent := n.Parent
-		parent.InsertBefore(link, n)
-		parent.RemoveChild(n)
-		return next
-	}
-
-	// span that encodes some style and only has text or <br> children
-	// after : <span style="...">text</span>
-	// before: <b><i>text</i></b>
-	//
-	if isTextWrapper(n) {
+		// span that encodes some style and only has text or <br> children
+		// after : <span style="...">text</span>
+		// before: <b><i>text</i></b>
+		//
+		if !isTextWrapper(n) {
+			continue
+		}
 		text := getTextContent(n)
 		// span tag with style, and no children
 		// often seen in line breaks like
@@ -48,7 +49,7 @@ func convertSpan(n *html.Node) *html.Node {
 		//
 		if text == "" {
 			n.Parent.RemoveChild(n)
-			return next
+			continue
 		}
 
 		// create a new text node
@@ -86,14 +87,7 @@ func convertSpan(n *html.Node) *html.Node {
 		parent := n.Parent
 		parent.InsertBefore(newNode, n)
 		parent.RemoveChild(n)
-		return next
 	}
-
-	c := n.FirstChild
-	for c != nil {
-		c = convertSpan(c)
-	}
-	return next
 }
 
 // must be a <span> and all children are text nodes or <br>
