@@ -4,11 +4,18 @@ import (
 	"log"
 	"strings"
 
+	"github.com/andybalholm/cascadia"
+	"github.com/gohugoio/hugo/parser"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
-func HugoFrontMatter(root *html.Node) {
+var (
+	selectorTitle    = cascadia.MustCompile("p[class~=title]")
+	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
+)
+
+func HugoFrontMatter(root *html.Node) (map[string]interface{}, error) {
 	var front string
 	var fStart *html.Node
 	var fEnd *html.Node
@@ -45,7 +52,7 @@ func HugoFrontMatter(root *html.Node) {
 	// no front matter
 	if fStart == nil {
 		log.Printf("OK - did not find front matter start")
-		return
+		return make(map[string]interface{}), nil
 	}
 
 	// find ending
@@ -69,7 +76,7 @@ func HugoFrontMatter(root *html.Node) {
 	// didn't find end
 	if fEnd == nil {
 		log.Printf("did not find front matter end")
-		return
+		return make(map[string]interface{}), nil
 	}
 
 	// delete all the nodes up to and including fEnd
@@ -87,6 +94,39 @@ func HugoFrontMatter(root *html.Node) {
 	// the front matter is code!
 	front = unsmart(front)
 
-	// insert front matter as first element
-	root.InsertBefore(newTextNode(front), root.FirstChild)
+	meta, err := parser.HandleYAMLMetaData([]byte(front))
+	if err != nil {
+		return nil, err
+	}
+	if title := extractTitle(root); title != "" {
+		if _, ok := meta["title"]; !ok {
+			meta["title"] = title
+		}
+	}
+
+	if desc := extractSubtitle(root); desc != "" {
+		if _, ok := meta["description"]; !ok {
+			meta["description"] = desc
+		}
+	}
+	return meta, nil
+}
+
+func extractTitle(root *html.Node) string {
+	n := selectorTitle.MatchFirst(root)
+	if n == nil {
+		return ""
+	}
+	val := getTextContent(n)
+	n.Parent.RemoveChild(n)
+	return val
+}
+func extractSubtitle(root *html.Node) string {
+	n := selectorSubtitle.MatchFirst(root)
+	if n == nil {
+		return ""
+	}
+	val := getTextContent(n)
+	n.Parent.RemoveChild(n)
+	return val
 }

@@ -7,13 +7,6 @@ import (
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
-
-	"github.com/andybalholm/cascadia"
-)
-
-var (
-	selectorTitle    = cascadia.MustCompile("p[class~=title]")
-	selectorSubtitle = cascadia.MustCompile("p[class~=subtitle]")
 )
 
 // recursive, with special rules for gDoc
@@ -46,36 +39,16 @@ func removeNbsp(src string) string {
 	return strings.Replace(src, "\u00a0", " ", -1)
 }
 
-func extractTitle(root *html.Node) string {
-	n := selectorTitle.MatchFirst(root)
-	if n == nil {
-		return ""
-	}
-	val := getTextContent(n)
-	n.Parent.RemoveChild(n)
-	return val
-}
-func extractSubtitle(root *html.Node) string {
-	n := selectorSubtitle.MatchFirst(root)
-	if n == nil {
-		return ""
-	}
-	val := getTextContent(n)
-	n.Parent.RemoveChild(n)
-	return val
-}
-
 // if you already have a google doc node
-func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
-	meta := make(map[string]interface{})
-	if title := extractTitle(root); title != "" {
-		meta["title"] = title
+func fromNode(root *html.Node) ([]byte, map[string]interface{}, error) {
+
+	// hugo specific
+	meta, err := HugoFrontMatter(root)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if desc := extractSubtitle(root); desc != "" {
-		meta["description"] = desc
-	}
-
+	// generic transforms
 	tx := []func(*html.Node){
 		// gdoc specific
 		GdocSpan,
@@ -87,55 +60,47 @@ func fromNode(root *html.Node, w io.Writer) (map[string]interface{}, error) {
 
 		// more generic
 		RemoveEmptyTags,
-		HugoFrontMatter,
 		UnsmartCode,
 		AddClassAttr,
 	}
-
 	for _, fn := range tx {
 		fn(root)
 	}
-
 	// Render into buffer
 	buf := bytes.Buffer{}
 	if err := renderChildren(&buf, root); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// final fixups.. needed to be done outside of tree
+	// final hugo fixups.. needed to be done outside of tree
 	out := buf.Bytes()
 	out = unescapeShortcodes(out)
 	out = unescapeEntities(out)
-
-	_, err := w.Write(out)
-
-	return meta, err
+	out = bytes.TrimSpace(out)
+	return out, meta, nil
 }
 
-func parseFragment(src string) (string, map[string]interface{}, error) {
+func parseFragment(src string) (string, error) {
 	body := newElementNode("body")
 	r := strings.NewReader(src)
-	buf := bytes.Buffer{}
 	nodes, err := html.ParseFragment(r, body)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	for _, n := range nodes {
 		body.AppendChild(n)
 	}
-	meta, err := fromNode(body, &buf)
+	content, _, err := fromNode(body)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
-	return buf.String(), meta, nil
+	return string(content), nil
 }
 
-func ToHTML(r io.Reader, w io.Writer) (map[string]interface{}, error) {
+func ToHTML(r io.Reader) ([]byte, map[string]interface{}, error) {
 	root, err := html.Parse(r)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	root = getBody(root)
-	return fromNode(root, w)
+	return fromNode(getBody(root))
 }

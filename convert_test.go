@@ -77,7 +77,7 @@ func TestXXX(t *testing.T) {
 	doc := `<p style=""><span style=""><a href="something" style="">hello</a></span><span></span><span>world</span></p>`
 	want := `<p><a href="something">hello</a> world</p>`
 
-	got, _, err := parseFragment(doc)
+	got, err := parseFragment(doc)
 	if err != nil {
 		t.Fatalf("unable to parse %s", err)
 	}
