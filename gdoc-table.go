@@ -18,7 +18,7 @@ var (
 //  If first row had bold <td> elements, convert the row into
 //    a <thead> with <th> elements
 //
-func GdocTable(root *html.Node) {
+func GdocTable(root *html.Node) error {
 
 	// gdoc puts a <p> inside each <td>.  Remove the unnecessary <p> tag.
 	for _, p := range selectorTdP.MatchAll(root) {
@@ -31,6 +31,7 @@ func GdocTable(root *html.Node) {
 	for _, table := range selectorTable.MatchAll(root) {
 		fixTableNode(table)
 	}
+	return nil
 }
 func hasBoldChildren(n *html.Node) bool {
 	return selectorBold.MatchFirst(n) != nil

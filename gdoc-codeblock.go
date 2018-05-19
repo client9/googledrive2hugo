@@ -13,7 +13,7 @@ var (
 	selectorCodeBlock = cascadia.MustCompile(`p>code:only-child`)
 )
 
-func GdocCodeBlock(root *html.Node) {
+func GdocCodeBlock(root *html.Node) error {
 	var first *html.Node
 
 	for _, code := range selectorCodeBlock.MatchAll(root) {
@@ -47,4 +47,6 @@ func GdocCodeBlock(root *html.Node) {
 		p.Attr = nil
 		first = p
 	}
+
+	return nil
 }

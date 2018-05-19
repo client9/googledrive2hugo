@@ -12,11 +12,12 @@ import (
 //  * colspan,rowspan if not "1"
 //
 // TODO: probably can optimize this by skipping recusion on text-nodes
-func GdocAttr(root *html.Node) {
+func GdocAttr(root *html.Node) error {
 	removeAttr(root)
 	for c := root.FirstChild; c != nil; c = c.NextSibling {
 		GdocAttr(c)
 	}
+	return nil
 }
 
 func removeAttr(n *html.Node) {

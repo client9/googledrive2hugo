@@ -37,8 +37,9 @@ func unsmart(s string) string {
 	return unsmartReplacer.Replace(s)
 }
 
-func UnsmartCode(root *html.Node) {
+func UnsmartCode(root *html.Node) error {
 	for _, n := range unsmartSelector.MatchAll(root) {
 		transformTextNodes(n, unsmart)
 	}
+	return nil
 }

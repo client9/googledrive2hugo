@@ -18,7 +18,7 @@ var (
 	selectorBlockCode = cascadia.MustCompile(`p[style="margin-left:36pt"]>code:only-child`)
 )
 
-func GdocBlockquotePre(root *html.Node) {
+func GdocBlockquotePre(root *html.Node) error {
 	var first *html.Node
 
 	for _, code := range selectorBlockCode.MatchAll(root) {
@@ -47,6 +47,7 @@ func GdocBlockquotePre(root *html.Node) {
 		first = p
 
 	}
+	return nil
 }
 
 // Reparent <code> children

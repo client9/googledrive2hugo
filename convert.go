@@ -3,6 +3,7 @@ package googledrive2hugo
 import (
 	"bytes"
 	"io"
+	"log"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -49,7 +50,7 @@ func fromNode(root *html.Node) ([]byte, map[string]interface{}, error) {
 	}
 
 	// generic transforms
-	tx := []func(*html.Node){
+	tx := []func(*html.Node) error{
 		// gdoc specific
 		GdocSpan,
 		GdocBlockquotePre,
@@ -62,18 +63,24 @@ func fromNode(root *html.Node) ([]byte, map[string]interface{}, error) {
 		RemoveEmptyTags,
 		UnsmartCode,
 		AddClassAttr,
+		LinkRelative("https://www.client9.com"),
+		LinkInsecure([]string{
+			"ogp.me/",
+		}),
 	}
 	for _, fn := range tx {
-		fn(root)
+		if err := fn(root); err != nil {
+			log.Fatalf("Failed: %s", err)
+		}
 	}
 	// Render into buffer
 	buf := bytes.Buffer{}
 	if err := renderChildren(&buf, root); err != nil {
 		return nil, nil, err
 	}
+	out := buf.Bytes()
 
 	// final hugo fixups.. needed to be done outside of tree
-	out := buf.Bytes()
 	out = unescapeShortcodes(out)
 	out = unescapeEntities(out)
 	out = bytes.TrimSpace(out)

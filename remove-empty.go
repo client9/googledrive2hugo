@@ -14,8 +14,9 @@ var (
 // <p></p> is used a typically unintended line spaces
 // <a></a> is in docs for unknown reasons
 //
-func RemoveEmptyTags(root *html.Node) {
+func RemoveEmptyTags(root *html.Node) error {
 	for _, empty := range selectorEmpty.MatchAll(root) {
 		empty.Parent.RemoveChild(empty)
 	}
+	return nil
 }

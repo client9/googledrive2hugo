@@ -13,7 +13,7 @@ var (
 
 // GdocBlockquote converts a sequence of <p style="margin-left:36pt"> to a blockquote
 //
-func GdocBlockquote(root *html.Node) {
+func GdocBlockquote(root *html.Node) error {
 	var first *html.Node
 	nodes := selectorBlockquote.MatchAll(root)
 	for _, n := range nodes {
@@ -31,4 +31,6 @@ func GdocBlockquote(root *html.Node) {
 		first.Data = "blockquote"
 		first.Attr = nil
 	}
+
+	return nil
 }

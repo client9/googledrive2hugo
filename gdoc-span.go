@@ -13,7 +13,7 @@ var (
 )
 
 // converts span wrappers to a series of <b><i><code> elements
-func GdocSpan(root *html.Node) {
+func GdocSpan(root *html.Node) error {
 	for _, n := range selectorSpan.MatchAll(root) {
 
 		// useless span tag wrapping an anchor
@@ -88,6 +88,8 @@ func GdocSpan(root *html.Node) {
 		parent.InsertBefore(newNode, n)
 		parent.RemoveChild(n)
 	}
+
+	return nil
 }
 
 // must be a <span> and all children are text nodes or <br>

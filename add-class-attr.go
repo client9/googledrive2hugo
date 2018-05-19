@@ -26,7 +26,7 @@ var xxx = map[string]map[string]string{
 	},
 }
 
-func AddClassAttr(n *html.Node) {
+func AddClassAttr(n *html.Node) error {
 	if override := xxx[n.Data]; override != nil {
 		for k, v := range override {
 			n.Attr = append(n.Attr, html.Attribute{Key: k, Val: v})
@@ -38,4 +38,6 @@ func AddClassAttr(n *html.Node) {
 			AddClassAttr(c)
 		}
 	}
+
+	return nil
 }
