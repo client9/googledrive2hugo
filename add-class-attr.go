@@ -5,15 +5,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-var xxx = map[string]string{
-	"table":      "table table-sm",
-	"blockquote": "pl-3 lines-dense",
-	"pre":        "p-1 pl-3 lines-dense",
-	"h1":         "h2 mb-3", // no top margin
-	"h2":         "h4 mt-4 mb-4",
-	"h3":         "h5 mt-4 mb-4",
-}
-
 type AddClassAttr struct {
 	ClassMap map[string]string
 }
