@@ -74,7 +74,7 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) error {
 		tmp := trimLeftSpace(linked)
 		if linked != tmp {
 			first.Data = tmp
-			log.Debug("trimmed of whitespace", "tag", p.Data, "text", getTextContent(p))
+			log.Debug("", "tag", p.Data, "text", getTextContent(p))
 			prev := getPrevTextNode(getParentBlock(first), first)
 			if prev != nil && !hasSuffixSpace(prev.Data) {
 				prev.Data = prev.Data + " "
@@ -85,7 +85,7 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) error {
 		linked = last.Data
 		tmp = trimRightSpace(linked)
 		if linked != tmp {
-			log.Debug("trimmed ending of whitespace", "tag", p.Data, "text", getTextContent(p))
+			log.Debug("", "tag", p.Data, "text", getTextContent(p))
 			last.Data = tmp
 			next := getNextTextNode(getParentBlock(last), last)
 			if next == nil {

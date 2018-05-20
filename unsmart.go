@@ -2,15 +2,15 @@ package googledrive2hugo
 
 import (
 	"strings"
-
-	"golang.org/x/net/html"
+	"sync"
 
 	"github.com/andybalholm/cascadia"
+	"github.com/client9/ilog"
+	"golang.org/x/net/html"
 )
 
 var (
 	unsmartReplacer *strings.Replacer
-	unsmartSelector cascadia.Selector
 )
 
 func init() {
@@ -28,8 +28,6 @@ func init() {
 		"\u2014", "---", // em dash
 	}
 	unsmartReplacer = strings.NewReplacer(replacements...)
-	unsmartSelector = cascadia.MustCompile("code,var,kbd")
-
 }
 
 // pure function
@@ -37,9 +35,29 @@ func unsmart(s string) string {
 	return unsmartReplacer.Replace(s)
 }
 
-func UnsmartCode(root *html.Node) error {
-	for _, n := range unsmartSelector.MatchAll(root) {
-		transformTextNodes(n, unsmart)
+type UnsmartCode struct {
+	Pattern  string
+	selector cascadia.Selector
+	replacer strings.Replacer
+	init     sync.Once
+}
+
+func (n *UnsmartCode) Run(root *html.Node, log ilog.Logger) (err error) {
+	const pattern = "code,var,kbd"
+	n.init.Do(func() {
+		if n.Pattern == "" {
+			n.Pattern = pattern
+		}
+		n.selector, err = cascadia.Compile(n.Pattern)
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, node := range n.selector.MatchAll(root) {
+		if transformTextNodes(node, unsmart) {
+			log.Debug("", "tag", node.Data)
+		}
 	}
 	return nil
 }

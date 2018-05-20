@@ -67,8 +67,6 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 		GdocAttr,
 
 		// more generic
-		RemoveEmptyTags,
-		UnsmartCode,
 		AddClassAttr,
 		LinkRelative("https://www.client9.com"),
 		LinkInsecure([]string{
@@ -87,6 +85,8 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 	}
 
 	tx2 := []Runner{
+		&RemoveEmptyTag{},
+		&UnsmartCode{},
 		&NarrowTag{},
 		&Punc{},
 	}

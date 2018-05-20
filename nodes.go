@@ -67,14 +67,22 @@ func getClassAttr(root *html.Node) string {
 }
 
 // provides some function to edit every text node
-func transformTextNodes(n *html.Node, fn func(string) string) {
+func transformTextNodes(n *html.Node, fn func(string) string) bool {
+	dirty := false
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.TextNode {
-			c.Data = fn(c.Data)
+			orig := c.Data
+			c.Data = fn(orig)
+			if c.Data != orig {
+				dirty = true
+			}
 			continue
 		}
-		transformTextNodes(c, fn)
+		if transformTextNodes(c, fn) {
+			dirty = true
+		}
 	}
+	return dirty
 }
 
 func getBody(root *html.Node) *html.Node {
