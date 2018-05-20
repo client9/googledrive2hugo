@@ -65,17 +65,6 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 		GdocCodeBlock,
 		GdocTable,
 		GdocAttr,
-
-		// more generic
-		AddClassAttr,
-		LinkRelative("https://www.client9.com"),
-		LinkInsecure([]string{
-			"ogp.me",
-			"www.elliotdahl.com",
-			"z12t.com",
-			"markdotto.com",
-			"montserrat.zkysky.com.ar",
-		}),
 	}
 
 	for _, fn := range tx {
@@ -85,6 +74,28 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 	}
 
 	tx2 := []Runner{
+		&AddClassAttr{
+			ClassMap: map[string]string{
+				"table":      "table table-sm",
+				"blockquote": "pl-3 lines-dense",
+				"pre":        "p-1 pl-3 lines-dense",
+				"h1":         "h2 mb-3", // no top margin
+				"h2":         "h4 mt-4 mb-4",
+				"h3":         "h5 mt-4 mb-4",
+			},
+		},
+		&LinkRelative{
+			Pattern: "https://www.client9.com",
+		},
+		&LinkInsecure{
+			Whitelist: []string{
+				"ogp.me",
+				"www.elliotdahl.com",
+				"z12t.com",
+				"markdotto.com",
+				"montserrat.zkysky.com.ar",
+			},
+		},
 		&RemoveEmptyTag{},
 		&UnsmartCode{},
 		&NarrowTag{},

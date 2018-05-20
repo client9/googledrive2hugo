@@ -2,10 +2,11 @@ package googledrive2hugo
 
 import (
 	"fmt"
-	"log"
 	"strings"
+	"sync"
 
 	"github.com/andybalholm/cascadia"
+	"github.com/client9/ilog"
 	"golang.org/x/net/html"
 )
 
@@ -18,23 +19,36 @@ func inWhitelist(whitelist []string, link string) bool {
 	return false
 }
 
-func LinkInsecure(whitelist []string) func(*html.Node) error {
-	selector := cascadia.MustCompile(fmt.Sprintf("a[href^=%q]", "http:"))
-	return func(root *html.Node) error {
-		insecure := make(map[string]bool)
-		for _, n := range selector.MatchAll(root) {
-			for _, attr := range n.Attr {
-				if attr.Key == "href" && !inWhitelist(whitelist, attr.Val) {
+type LinkInsecure struct {
+	Whitelist []string
+	selector  cascadia.Selector
+	init      sync.Once
+}
+
+func (n *LinkInsecure) Run(root *html.Node, log ilog.Logger) (err error) {
+	n.init.Do(func() {
+		n.selector, err = cascadia.Compile(`a[href^="http:"]`)
+	})
+	if err != nil {
+		return err
+	}
+	insecure := make(map[string]bool)
+	for _, node := range n.selector.MatchAll(root) {
+		for _, attr := range node.Attr {
+			if attr.Key == "href" {
+				if inWhitelist(n.Whitelist, attr.Val) {
+					log.Debug("whitelisted", "url", attr.Val)
+				} else {
 					insecure[attr.Val] = true
 				}
 			}
 		}
-		if len(insecure) > 0 {
-			for k, _ := range insecure {
-				log.Printf("Insecure link: %s", k)
-			}
-			return fmt.Errorf("Found %d insecure links.  Fix or add to whitelist", len(insecure))
-		}
-		return nil
 	}
+	if len(insecure) > 0 {
+		for k, _ := range insecure {
+			log.Debug("insecure", "url", k)
+		}
+		return fmt.Errorf("Found %d insecure links.  Fix or add to whitelist", len(insecure))
+	}
+	return nil
 }
