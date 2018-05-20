@@ -1,17 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"flag"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/client9/googledrive2hugo"
-
+	"github.com/client9/ilog"
+	"github.com/client9/ilog/stdlib/adapter"
 	"google.golang.org/api/drive/v3"
 
 	// for saving intermediate HTML.  The google generated html is
@@ -22,24 +20,11 @@ import (
 	"github.com/gohugoio/hugo/helpers"
 )
 
-type nopWriter struct {
-	io.Writer
-}
-
-func (nopWriter) Close() error { return nil }
-
-// NopWriteCloser returns a WriteCloser with a no-op Close method wrapping
-// the provided Reader r.
-func NopWriteCloser(w io.Writer) io.WriteCloser {
-	return nopWriter{w}
-}
-
 var (
 	flagRoot     *string
 	flagOut      *string
 	flagSanitize *bool
 	flagSaveTmp  *string
-	flagFormat   *string
 )
 
 func init() {
@@ -47,121 +32,103 @@ func init() {
 	flagOut = flag.String("out", ".", "output directory")
 	flagSaveTmp = flag.String("tmp", "", "directory to save intermediate files")
 	flagSanitize = flag.Bool("sanitize-filename", true, "sanitize gdoc filename")
-	flagFormat = flag.String("format", "html", "output format, html or md")
 	flag.Parse()
 }
 
 // sample WalkFn
-func printer(srv *drive.Service, path string, info *drive.File, err error) error {
-	origpath := path
-	if err != nil {
-		log.Printf("Error on %q, %s", path, err)
-		return nil
-	}
-
-	if *flagSanitize {
-		// PathSpec is a complicated object, but the part we need
-		// is simple.  Ideally rip it out of hugo
-		// (or make independent function)
-		pspec := helpers.PathSpec{}
-		path = pspec.URLize(path)
-	}
-
-	if googledrive2hugo.IsDir(info) {
-		outpath := filepath.Dir(filepath.Join(*flagOut, path))
-		if outpath == "." || outpath == ".." {
+func walker(c googledrive2hugo.Converter, logger ilog.Logger) googledrive2hugo.WalkFunc {
+	return func(srv *drive.Service, path string, info *drive.File, err error) error {
+		origpath := path
+		if err != nil {
+			logger.Debug("walk error", "path", path, "err", err)
 			return nil
 		}
-		// TODO ADD DRY RUN
-		err = os.MkdirAll(outpath, 0755)
+
+		if *flagSanitize {
+			// PathSpec is a complicated object, but the part we need
+			// is simple.  Ideally rip it out of hugo
+			// (or make independent function)
+			pspec := helpers.PathSpec{}
+			path = pspec.URLize(path)
+		}
+
+		if googledrive2hugo.IsDir(info) {
+			outpath := filepath.Dir(filepath.Join(*flagOut, path))
+			if outpath == "." || outpath == ".." {
+				return nil
+			}
+			// TODO ADD DRY RUN
+			err = os.MkdirAll(outpath, 0755)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// if not a google doc, skip (or if directory allow Walk to descend)
+		if !googledrive2hugo.IsGoogleDoc(info) {
+			logger.Debug("skipping non google doc", "name", path)
+			return nil
+		}
+		logger.Debug("reading", "path", origpath)
+		rawhtml, err := googledrive2hugo.ExportHTML(srv, info)
 		if err != nil {
-			log.Printf("Unable to make directory %q: %s", filepath.Dir(outpath), err)
 			return err
 		}
-		return nil
-	}
 
-	// if not a google doc, skip (or if directory allow Walk to descend)
-	if !googledrive2hugo.IsGoogleDoc(info) {
-		log.Printf("Skipping %s is not a google doc", path)
-		return nil
-	}
-	log.Printf("Reading %q", origpath)
-	reader, err := googledrive2hugo.ExportHTML(srv, info)
-	if err != nil {
-		log.Printf("WARNING: unable to export %s: %s", path, err)
-		return err
-	}
-
-	rawhtml, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return err
-	}
-	reader.Close()
-
-	// save raw HTML output if requested
-	if *flagSaveTmp != "" {
-		htmlpath := filepath.Join(*flagSaveTmp, path) + ".html"
-		htmldir := filepath.Dir(htmlpath)
-		if htmldir != "." {
-			err = os.MkdirAll(htmldir, 0755)
-			if err != nil {
-				log.Printf("Unable to make %s directory: %s", htmldir, err)
+		// save raw HTML output if requested
+		if *flagSaveTmp != "" {
+			htmlpath := filepath.Join(*flagSaveTmp, path) + ".html"
+			htmldir := filepath.Dir(htmlpath)
+			if htmldir != "." {
+				if err = os.MkdirAll(htmldir, 0755); err != nil {
+					return err
+				}
+			}
+			rawhtml := htmlfmt.FormatBytes(rawhtml, "", "  ")
+			if err = ioutil.WriteFile(htmlpath, rawhtml, 0644); err != nil {
 				return err
 			}
 		}
-		log.Printf("Writing HTML: %s", htmlpath)
-
-		rawhtml := htmlfmt.FormatBytes(rawhtml, "", "  ")
-		if err = ioutil.WriteFile(htmlpath, rawhtml, 0644); err != nil {
+		fileMeta := googledrive2hugo.FileInfoToMeta(info)
+		out, err := c.ToHTML(rawhtml, fileMeta)
+		if err != nil {
 			return err
 		}
-	}
-	// set up writing to file
-	//   dry run by default
-	fd := NopWriteCloser(ioutil.Discard)
-
-	// if flagOut is empty, then dry-run only
-	if *flagOut != "" {
-		outpath := filepath.Join(*flagOut, path) + "." + *flagFormat
+		if *flagOut == "" {
+			return nil
+		}
+		outpath := filepath.Join(*flagOut, path) + ".html"
 		outdir := filepath.Dir(outpath)
 		if outdir != "." {
-			err = os.MkdirAll(outdir, 0755)
-			if err != nil {
-				log.Printf("Unable to make directory %q: %s", outdir, err)
+			if err = os.MkdirAll(outdir, 0755); err != nil {
 				return err
 			}
 		}
-		// markdown time
-		fd, err = os.Create(outpath)
-		if err != nil {
-			log.Printf("WARNING: unable to create file %s: %s", outpath, err)
+		logger.Debug("writing html", "path", outpath)
+		if err = ioutil.WriteFile(outpath, out, 0644); err != nil {
 			return err
 		}
-		log.Printf("Writing Markdown: %s", outpath)
-	}
-
-	defer fd.Close()
-	fileMeta := googledrive2hugo.FileInfoToMeta(info)
-
-	switch *flagFormat {
-	//case "md":
-	//		return googledrive2hugo.Convert(rawhtml, info, fd)
-	case "html":
-		return googledrive2hugo.ConvertHTML(bytes.NewReader(rawhtml), fileMeta, fd)
-	default:
-		return fmt.Errorf("Unknown export type %s", *flagFormat)
+		return nil
 	}
 }
 
 func main() {
-	srv, err := googledrive2hugo.Setup()
-	if err != nil {
-		log.Fatalf("unable to auth: %s", err)
+	stdlog := log.New(os.Stderr, "", 0)
+	logger := adapter.New(stdlog)
+	convert := googledrive2hugo.Converter{
+		Logger: logger,
 	}
 
-	err = googledrive2hugo.Walk(srv, *flagRoot, printer)
+	srv, err := googledrive2hugo.Setup()
 	if err != nil {
-		log.Fatalf("walk failed: %s", err)
+		logger.Error("unable to auth", "err", err)
+		os.Exit(1)
+	}
+
+	err = googledrive2hugo.Walk(srv, *flagRoot, walker(convert, logger))
+	if err != nil {
+		logger.Error("walk failed", "err", err)
+		os.Exit(1)
 	}
 }

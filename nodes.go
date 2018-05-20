@@ -93,3 +93,85 @@ func getStyleAttr(n *html.Node) string {
 	}
 	return ""
 }
+
+func getTextContent(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+
+	// somehow gdoc occassionally inserts a
+	// <span></span> which indicates a space
+	// it has no style or attributes
+	if n.DataAtom == atom.Span && n.FirstChild == nil && len(n.Attr) == 0 {
+		return " "
+	}
+
+	if n.Type == html.ElementNode && n.DataAtom == atom.Br {
+		return "\n"
+	}
+
+	out := ""
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		out += getTextContent(c)
+	}
+	return removeNbsp(out)
+}
+
+func getTextNodes(root *html.Node) []*html.Node {
+	var out []*html.Node
+	if root.Type == html.TextNode {
+		out = append(out, root)
+		return out
+	}
+	getChildTextNodes(root, &out)
+	return out
+}
+
+func getChildTextNodes(root *html.Node, out *[]*html.Node) {
+	for c := root.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode {
+			*out = append(*out, c)
+			continue
+		}
+		getChildTextNodes(c, out)
+	}
+}
+
+func getNextTextNode(root *html.Node, current *html.Node) *html.Node {
+	for current != root {
+		if next := getNextTextNodeSibling(current.NextSibling); next != nil {
+			return next
+		}
+		current = current.Parent
+	}
+	return nil
+}
+
+func getPrevTextNode(root *html.Node, current *html.Node) *html.Node {
+	for current != root {
+		if prev := getPrevTextNodeSibling(current.PrevSibling); prev != nil {
+			return prev
+		}
+		current = current.Parent
+	}
+	return nil
+}
+
+func getNextTextNodeSibling(current *html.Node) *html.Node {
+	for c := current; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode {
+			return c
+		}
+		return getNextTextNodeSibling(c.FirstChild)
+	}
+	return nil
+}
+func getPrevTextNodeSibling(current *html.Node) *html.Node {
+	for c := current; c != nil; c = c.PrevSibling {
+		if c.Type == html.TextNode {
+			return c
+		}
+		return getPrevTextNodeSibling(c.LastChild)
+	}
+	return nil
+}

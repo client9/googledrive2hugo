@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/client9/ilog"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -13,11 +14,7 @@ import (
 // in particular with <span></span>
 // Conclusion: parses and renders them
 func TestEmptyTagParsing(t *testing.T) {
-	context := &html.Node{
-		Type:     html.ElementNode,
-		Data:     "body",
-		DataAtom: atom.Body,
-	}
+	context := newElementNode("body")
 	doc := "<p><span></span></p>"
 	// list of nodes
 	nodes, err := html.ParseFragment(strings.NewReader(doc), context)
@@ -74,10 +71,13 @@ func TestGetTextChildren(t *testing.T) {
 }
 
 func TestXXX(t *testing.T) {
-	doc := `<p style=""><span style=""><a href="something" style="">hello</a></span><span></span><span>world</span></p>`
-	want := `<p><a href="something">hello</a> world</p>`
+	c := Converter{
+		Logger: &ilog.NopLogger{},
+	}
+	doc := `<p style=""><span style=""><a href="something" style="">hello</a></span><span></span><span>world.</span></p>`
+	want := `<p><a href="something">hello</a> world.</p>`
 
-	got, err := parseFragment(doc)
+	got, err := c.parseFragment(doc)
 	if err != nil {
 		t.Fatalf("unable to parse %s", err)
 	}

@@ -1,47 +1,34 @@
 package googledrive2hugo
 
 import (
-	"fmt"
-	"io"
+	"bytes"
 
 	"github.com/gohugoio/hugo/parser"
 )
 
-// Convert Google Doc HTML to Hugo Content HTML
-func ConvertHTML(r io.Reader, fileMeta map[string]interface{}, w io.Writer) error {
-
-	content, meta, err := ToHTML(r)
-
-	if err != nil {
-		return fmt.Errorf("readerErr: %s", err)
-	}
-
-	MetaMerge(meta, fileMeta)
-	return HugoContentWrite(content, meta, w)
-}
-
 // merge B into A
-func MetaMerge(a, b map[string]interface{}) {
+func MetaMerge(a, b map[string]interface{}) map[string]interface{} {
 	for k, v := range b {
 		// don't over-write
 		if _, ok := a[k]; !ok {
 			a[k] = v
 		}
 	}
+	return a
 }
 
 // HugoContent takes front-matter data, content and writes it
 // to output stream
 //
-func HugoContentWrite(content []byte, metamap map[string]interface{}, w io.Writer) error {
+func HugoContentWrite(content []byte, metamap map[string]interface{}) ([]byte, error) {
+	w := &bytes.Buffer{}
 	// TODO: '-' produces yaml, '+' toml, '{' JSON
 	//  should make a flag
 	if err := parser.InterfaceToFrontMatter(metamap, '-', w); err != nil {
-		return err
+		return nil, err
 	}
-	//out := gohtml.NewWriter(w)
 	if _, err := w.Write(content); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return w.Bytes(), nil
 }

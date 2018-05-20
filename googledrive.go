@@ -2,7 +2,7 @@ package googledrive2hugo
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -100,12 +100,16 @@ func Walk(srv *drive.Service, root string, walkfn WalkFunc) error {
 
 // ExportHTML downloads a Google Doc as HTML
 //  Download as Zip and unzip
-func ExportHTML(srv *drive.Service, f *drive.File) (io.ReadCloser, error) {
+func ExportHTML(srv *drive.Service, f *drive.File) ([]byte, error) {
 	resp, err := srv.Files.Export(f.Id, "text/html").Download()
 	if err != nil {
 		return nil, err
 	}
-	return resp.Body, nil
+	out, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return out, resp.Body.Close()
 }
 
 // output map is the one used by Hugo
