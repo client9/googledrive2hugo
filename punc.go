@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultSelectorNarrowTag = "p a[href],p code"
+	defaultSelectorNarrowTag = "p a[href],p code,p i,p b,p strong,p em,p span"
 	defaultSelectorPunc      = "p"
 )
 
@@ -32,7 +32,6 @@ func getParentBlock(node *html.Node) *html.Node {
 		case atom.P, atom.Div, atom.Li, atom.Th, atom.Td:
 			return node
 		}
-		node = node.Parent
 		if node.Parent == nil {
 			return node
 		}
@@ -53,8 +52,16 @@ type NarrowTag struct {
 	selector cascadia.Selector
 }
 
-func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) error {
-	var err error
+func isBlank(nodes []*html.Node) bool {
+	for _, n := range nodes {
+		if strings.TrimSpace(n.Data) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
 	n.init.Do(func() {
 		if n.Pattern == "" {
 			n.Pattern = defaultSelectorNarrowTag
@@ -66,15 +73,21 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) error {
 	}
 	for _, p := range n.selector.MatchAll(root) {
 		nodes := getTextNodes(p)
-		if len(nodes) == 0 {
-			return fmt.Errorf("tag <%s> is empty", p.Data)
+		if isBlank(nodes) {
+			log.Debug("blank node", "tag", p.Data)
+			prev := getPrevTextNode(getParentBlock(p), p)
+			if prev != nil && !hasSuffixSpace(prev.Data) {
+				prev.Data = prev.Data + " "
+			}
+			p.Parent.RemoveChild(p)
+			continue
 		}
 		first := nodes[0]
 		linked := first.Data
 		tmp := trimLeftSpace(linked)
 		if linked != tmp {
 			first.Data = tmp
-			log.Debug("", "tag", p.Data, "text", getTextContent(p))
+			log.Debug("trim left", "tag", p.Data, "text", getTextContent(p))
 			prev := getPrevTextNode(getParentBlock(first), first)
 			if prev != nil && !hasSuffixSpace(prev.Data) {
 				prev.Data = prev.Data + " "
@@ -85,7 +98,7 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) error {
 		linked = last.Data
 		tmp = trimRightSpace(linked)
 		if linked != tmp {
-			log.Debug("", "tag", p.Data, "text", getTextContent(p))
+			log.Debug("trim right", "tag", p.Data, "text", getTextContent(p))
 			last.Data = tmp
 			next := getNextTextNode(getParentBlock(last), last)
 			if next == nil {
