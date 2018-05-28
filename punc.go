@@ -204,7 +204,7 @@ func hasParentAnchor(root *html.Node, current *html.Node) bool {
 
 func isEnd(r rune) bool {
 	switch r {
-	case '.', '?', '!', ':':
+	case '.', '?', '!', ':', '\u2026':
 		return true
 	}
 	return false
