@@ -15,9 +15,6 @@ import (
 	// for saving intermediate HTML.  The google generated html is
 	// compressed
 	"github.com/client9/htmlfmt"
-
-	// for converting gdoc filename to something same
-	"github.com/gohugoio/hugo/helpers"
 )
 
 var (
@@ -45,11 +42,7 @@ func walker(c googledrive2hugo.Converter, logger ilog.Logger) googledrive2hugo.W
 		}
 
 		if *flagSanitize {
-			// PathSpec is a complicated object, but the part we need
-			// is simple.  Ideally rip it out of hugo
-			// (or make independent function)
-			pspec := helpers.PathSpec{}
-			path = pspec.URLize(path)
+			path = googledrive2hugo.URLize(path)
 		}
 
 		if googledrive2hugo.IsDir(info) {
