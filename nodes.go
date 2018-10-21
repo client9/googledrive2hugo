@@ -57,6 +57,24 @@ func removeAllChildren(n *html.Node) {
 	}
 }
 
+func getHrefAttr(root *html.Node) string {
+	for _, attr := range root.Attr {
+		if attr.Key == "href" {
+			return attr.Val
+		}
+	}
+	return ""
+}
+
+func setAltAttr(root *html.Node, alt string) {
+	for i, attr := range root.Attr {
+		if attr.Key == "alt" {
+			root.Attr[i].Val = alt
+			return
+		}
+	}
+}
+
 func getClassAttr(root *html.Node) string {
 	for _, attr := range root.Attr {
 		if attr.Key == "class" {
