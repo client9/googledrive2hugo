@@ -45,7 +45,7 @@ func (n *LinkInsecure) Run(root *html.Node, log ilog.Logger) (err error) {
 		}
 	}
 	if len(insecure) > 0 {
-		for k, _ := range insecure {
+		for k := range insecure {
 			log.Debug("insecure", "url", k)
 		}
 		return fmt.Errorf("Found %d insecure links.  Fix or add to whitelist", len(insecure))
