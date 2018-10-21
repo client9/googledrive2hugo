@@ -27,6 +27,14 @@ func removeAttr(n *html.Node) {
 	idx := 0
 	for i := 0; i < len(n.Attr); i++ {
 		switch n.Attr[i].Key {
+		case "alt":
+			// used in images
+			n.Attr[idx] = n.Attr[i]
+			idx++
+		case "src":
+			// used in images
+			n.Attr[idx] = n.Attr[i]
+			idx++
 		case "href":
 			// needed for <a> and others
 			n.Attr[idx] = n.Attr[i]
