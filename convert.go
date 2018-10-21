@@ -59,6 +59,7 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 	// generic transforms
 	tx := []func(*html.Node) error{
 		// gdoc specific
+		GdocImg,
 		GdocSpan,
 		GdocBlockquotePre,
 		GdocBlockquote,
