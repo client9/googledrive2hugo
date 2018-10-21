@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	defaultSelectorEmpty = "a:empty,p:empty,em:empty,i:empty,strong:empty,b:empty,span:empty"
+	defaultSelectorEmpty = "a:empty,p:empty,em:empty,i:empty,strong:empty,b:empty,span:empty,div:empty"
 )
 
 // remove some empty tags
