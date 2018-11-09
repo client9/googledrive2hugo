@@ -83,6 +83,8 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 				"h1":         "h2 mb-3", // no top margin
 				"h2":         "h4 mt-4 mb-4",
 				"h3":         "h5 mt-4 mb-4",
+				"img":        "img-fluid",
+				"div:has(img)": "container pl-0",
 			},
 		},
 		&LinkRelative{
@@ -90,6 +92,8 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 		},
 		&LinkInsecure{
 			Whitelist: []string{
+				"www.lafite.com",
+				"www.donki.com",
 				"ogp.me",
 				"www.elliotdahl.com",
 				"z12t.com",
