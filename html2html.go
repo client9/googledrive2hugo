@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/gohugoio/hugo/parser"
+	"github.com/gohugoio/hugo/parser/metadecoders"
 )
 
 // merge B into A
@@ -24,7 +25,7 @@ func HugoContentWrite(content []byte, metamap map[string]interface{}) ([]byte, e
 	w := &bytes.Buffer{}
 	// TODO: '-' produces yaml, '+' toml, '{' JSON
 	//  should make a flag
-	if err := parser.InterfaceToFrontMatter(metamap, '-', w); err != nil {
+	if err := parser.InterfaceToFrontMatter(metamap, metadecoders.YAML, w); err != nil {
 		return nil, err
 	}
 	if _, err := w.Write(content); err != nil {
