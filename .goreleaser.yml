@@ -1,0 +1,26 @@
+# goreleaser.yml
+# https://github.com/goreleaser/goreleaser 
+build:
+  main: cmd/gdoc-export/main.go
+  binary: gdoc-export
+  ldflags: -s -w -X github.com/client9/googledrive2hugo/cmd/gdoc-export.version={{.Version}}
+  goos:
+    - darwin
+    - linux
+  goarch:
+    - amd64
+  env:
+    - CGO_ENABLED=0
+
+archive:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  replacements:
+    amd64: 64bit
+    386: 32bit
+    darwin: mac
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+snapshot:
+  name_template: SNAPSHOT-{{.Commit}}

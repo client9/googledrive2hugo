@@ -17,6 +17,11 @@ import (
 	"github.com/client9/htmlfmt"
 )
 
+// over-written at build time
+var (
+	version = "dev"
+)
+
 var (
 	flagRoot     *string
 	flagOut      *string
