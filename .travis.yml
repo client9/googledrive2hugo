@@ -9,4 +9,4 @@ script:
   - ./scripts/setup.sh
   - ./scripts/build.sh
 after_success:
-  - test -n "$TRAVIS_TAG" && ./scripts/goreleaser.sh
+  - ./scripts/goreleaser.sh
