@@ -77,13 +77,13 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 	tx2 := []Runner{
 		&AddClassAttr{
 			ClassMap: map[string]string{
-				"table":      "table table-sm",
-				"blockquote": "pl-3 lines-dense",
-				"pre":        "p-1 pl-3 lines-dense",
-				"h1":         "h2 mb-3", // no top margin
-				"h2":         "h4 mt-4 mb-4",
-				"h3":         "h5 mt-4 mb-4",
-				"img":        "img-fluid",
+				"table":        "table table-sm",
+				"blockquote":   "pl-3 lines-dense",
+				"pre":          "p-1 pl-3 lines-dense",
+				"h1":           "h2 mb-3", // no top margin
+				"h2":           "h4 mt-4 mb-4",
+				"h3":           "h5 mt-4 mb-4",
+				"img":          "img-fluid",
 				"div:has(img)": "container pl-0",
 			},
 		},
@@ -94,6 +94,10 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 			Whitelist: []string{
 				"www.lafite.com",
 				"www.donki.com",
+				"www.nakano-group.co.jp",
+				"www.e-shouchu.com",
+				"www.satasouji-shouten.co.jp",
+				"www.nakano-group.co.jp",
 				"ogp.me",
 				"www.elliotdahl.com",
 				"z12t.com",

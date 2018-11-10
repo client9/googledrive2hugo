@@ -96,6 +96,7 @@ func HugoFrontMatter(root *html.Node) (map[string]interface{}, error) {
 
 	meta, err := parser.HandleYAMLMetaData([]byte(front))
 	if err != nil {
+		log.Printf("FRONT:\n%s", front)
 		return nil, err
 	}
 	if title := extractTitle(root); title != "" {

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultSelectorNarrowTag = "p a[href],p code,p i,p b,p strong,p em,p span"
+	defaultSelectorNarrowTag = "h2,p a[href],p code,p i,p b,p strong,p em,p span"
 	defaultSelectorPunc      = "p"
 )
 
@@ -143,6 +143,14 @@ func (n *Punc) Run(root *html.Node, log ilog.Logger) error {
 		if len(nodes) == 0 {
 			continue
 		}
+		first := nodes[0]
+		tmp := first.Data
+		//log.Debug("first text node", "text", tmp)
+		first.Data = trimLeftSpace(tmp)
+		if tmp != first.Data {
+			log.Debug("deleting leading whitespace from <p>")
+		}
+
 		// checking ending
 		last := nodes[len(nodes)-1]
 		if err := pEnding(last, log); err != nil {
@@ -160,7 +168,7 @@ func pEnding(root *html.Node, log ilog.Logger) error {
 	if len(root.Data) == 0 {
 		return fmt.Errorf("Weird: paragraph ended in empty text node")
 	}
-	if root.Parent != nil && root.Parent.DataAtom != atom.P {
+	if root.Parent != nil && (root.Parent.DataAtom != atom.P && root.Parent.DataAtom != atom.A) {
 		return fmt.Errorf("Last Paragraph text node's parent is not <p>, got <%s>", root.Parent.Data)
 	}
 	tmp := trimRightSpace(root.Data)

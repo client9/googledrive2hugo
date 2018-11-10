@@ -1,6 +1,7 @@
 package googledrive2hugo
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/andybalholm/cascadia"
@@ -184,6 +185,12 @@ func fixHrefAttr(n *html.Node) {
 		if idx := strings.LastIndex(val, suffix); idx != -1 {
 			val = val[0:idx]
 		}
-		n.Attr[i].Val = val
+		// the whole url is query escaped, need to undo, since
+		// serialization will encode it again
+		valnew, err := url.QueryUnescape(val)
+		if err != nil {
+			continue
+		}
+		n.Attr[i].Val = valnew
 	}
 }

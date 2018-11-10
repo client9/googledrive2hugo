@@ -29,6 +29,11 @@ func GdocImg(root *html.Node) error {
 		}
 		reparentChildren(p, span)
 
+		// now turn <p> into a <div>
+		// maybe easier just zapping everythng and making new nodes
+		p.Data = "div"
+		p.DataAtom = atom.Div
+
 		// any comments?
 		for _, sup := range selectorComment.MatchAll(p) {
 			id := getHrefAttr(sup)
