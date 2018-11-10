@@ -1,6 +1,5 @@
 #!/bin/sh
 set -ex
-
-#go build ./...
+export GO111MODULE=on
 go test .
 go install ./cmd/gdoc-export
