@@ -1,6 +1,6 @@
 #!/bin/sh -e
 # autorelease based on tag
-if -z "$TRAVIS_TAG"; then
+if test -z "$TRAVIS_TAG"; then
 	echo "no tag found, not goreleasing"
 	exit 0
 fi
