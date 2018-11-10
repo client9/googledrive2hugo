@@ -1,5 +1,5 @@
 # googledrive2hugo
-Converts google docs to Hugo markdown  WIP
+Converts google docs to Hugo HTML content files WIP
 
 ### HEY, THIS IS ALPHA.  Names (this repo, package, functions) will change.
 
@@ -8,14 +8,14 @@ The Goal is to edit Google Docs content in Google Drive and then use Hugo (and f
 We do this by:
 
 * Reading a folder of Google Docs off a Google Drive
-* Convert to markdown with Hugo front matter
+* Convert to HTML with Hugo front matter
 * Place output in a Hugo site directory
 
 
 From there you publish in a few ways
 
 * Run Hugo and serve directly or publish output
-* Commit the generated markdown pages, trigger Travis-CI, whatever
+* Commit the generated content template pages, trigger Travis-CI, whatever
 
 ## Challenges
 
