@@ -1,8 +1,8 @@
 package googledrive2hugo
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/andybalholm/cascadia"
