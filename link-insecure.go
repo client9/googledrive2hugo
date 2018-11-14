@@ -1,7 +1,6 @@
 package googledrive2hugo
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
