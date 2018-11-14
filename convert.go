@@ -92,6 +92,7 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 		},
 		&LinkInsecure{
 			Whitelist: []string{
+				"duncantaylor.com",
 				"www.lafite.com",
 				"www.donki.com",
 				"www.nakano-group.co.jp",
