@@ -75,11 +75,7 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 		}
 	}
 
-	tx2, err := Parse(sample)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, fn := range tx2 {
+	for _, fn := range c.Filters {
 
 		// get name of function
 		fname := fmt.Sprintf("%T", fn)
