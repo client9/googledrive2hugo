@@ -2,7 +2,6 @@ package googledrive2hugo
 
 import (
 	"strings"
-	"sync"
 
 	"github.com/andybalholm/cascadia"
 	"github.com/client9/ilog"
@@ -21,16 +20,15 @@ func inWhitelist(whitelist []string, link string) bool {
 type LinkInsecure struct {
 	Whitelist []string
 	selector  cascadia.Selector
-	init      sync.Once
+}
+
+func (n *LinkInsecure) Init(list []string) (err error) {
+	n.Whitelist = list
+	n.selector, err = cascadia.Compile(`a[href^="http:"]`)
+	return err
 }
 
 func (n *LinkInsecure) Run(root *html.Node, log ilog.Logger) (err error) {
-	n.init.Do(func() {
-		n.selector, err = cascadia.Compile(`a[href^="http:"]`)
-	})
-	if err != nil {
-		return err
-	}
 	insecure := make(map[string]bool)
 	for _, node := range n.selector.MatchAll(root) {
 		for _, attr := range node.Attr {

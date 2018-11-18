@@ -3,7 +3,6 @@ package googledrive2hugo
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"unicode"
 
 	"github.com/andybalholm/cascadia"
@@ -47,8 +46,6 @@ type Runner interface {
 }
 
 type NarrowTag struct {
-	Pattern  string
-	init     sync.Once
 	selector cascadia.Selector
 }
 
@@ -60,17 +57,12 @@ func isBlank(nodes []*html.Node) bool {
 	}
 	return true
 }
+func (n *NarrowTag) Init() (err error) {
+	n.selector, err = cascadia.Compile(defaultSelectorNarrowTag)
+	return err
+}
 
 func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
-	n.init.Do(func() {
-		if n.Pattern == "" {
-			n.Pattern = defaultSelectorNarrowTag
-		}
-		n.selector, err = cascadia.Compile(n.Pattern)
-	})
-	if err != nil {
-		return err
-	}
 	for _, p := range n.selector.MatchAll(root) {
 		nodes := getTextNodes(p)
 		if isBlank(nodes) {
@@ -122,22 +114,15 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
 }
 
 type Punc struct {
-	Pattern  string
-	init     sync.Once
 	selector cascadia.Selector
 }
 
+func (n *Punc) Init() (err error) {
+	n.selector, err = cascadia.Compile(defaultSelectorPunc)
+	return err
+}
+
 func (n *Punc) Run(root *html.Node, log ilog.Logger) error {
-	var err error
-	n.init.Do(func() {
-		if n.Pattern == "" {
-			n.Pattern = defaultSelectorPunc
-		}
-		n.selector, err = cascadia.Compile(n.Pattern)
-	})
-	if err != nil {
-		return err
-	}
 	for _, p := range n.selector.MatchAll(root) {
 		nodes := getTextNodes(p)
 		if len(nodes) == 0 {

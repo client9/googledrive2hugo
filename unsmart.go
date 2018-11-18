@@ -2,7 +2,6 @@ package googledrive2hugo
 
 import (
 	"strings"
-	"sync"
 
 	"github.com/andybalholm/cascadia"
 	"github.com/client9/ilog"
@@ -36,24 +35,16 @@ func unsmart(s string) string {
 }
 
 type UnsmartCode struct {
-	Pattern  string
 	selector cascadia.Selector
-	replacer strings.Replacer
-	init     sync.Once
+}
+
+func (n *UnsmartCode) Init() (err error) {
+	const pattern = "code,var,kbd"
+	n.selector, err = cascadia.Compile(pattern)
+	return err
 }
 
 func (n *UnsmartCode) Run(root *html.Node, log ilog.Logger) (err error) {
-	const pattern = "code,var,kbd"
-	n.init.Do(func() {
-		if n.Pattern == "" {
-			n.Pattern = pattern
-		}
-		n.selector, err = cascadia.Compile(n.Pattern)
-	})
-	if err != nil {
-		return err
-	}
-
 	for _, node := range n.selector.MatchAll(root) {
 		if transformTextNodes(node, unsmart) {
 			log.Debug("", "tag", node.Data)

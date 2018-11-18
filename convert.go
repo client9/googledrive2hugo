@@ -16,7 +16,8 @@ func removeNbsp(src string) string {
 }
 
 type Converter struct {
-	Logger ilog.Logger
+	Logger  ilog.Logger
+	Filters []Runner
 }
 
 func (c *Converter) ToHTML(src []byte, fileMeta map[string]interface{}) ([]byte, error) {
@@ -74,42 +75,9 @@ func (c *Converter) FromNode(root *html.Node) ([]byte, map[string]interface{}, e
 		}
 	}
 
-	tx2 := []Runner{
-		&AddClassAttr{
-			ClassMap: map[string]string{
-				"table":        "table table-sm",
-				"blockquote":   "pl-3 lines-dense",
-				"pre":          "p-1 pl-3 lines-dense",
-				"h1":           "h2 mb-3", // no top margin
-				"h2":           "h4 mt-4 mb-4",
-				"h3":           "h5 mt-4 mb-4",
-				"img":          "img-fluid",
-				"div:has(img)": "container pl-0",
-			},
-		},
-		&LinkRelative{
-			Pattern: "https://www.client9.com",
-		},
-		&LinkInsecure{
-			Whitelist: []string{
-				"duncantaylor.com",
-				"www.lafite.com",
-				"www.donki.com",
-				"www.nakano-group.co.jp",
-				"www.e-shouchu.com",
-				"www.satasouji-shouten.co.jp",
-				"www.nakano-group.co.jp",
-				"ogp.me",
-				"www.elliotdahl.com",
-				"z12t.com",
-				"markdotto.com",
-				"montserrat.zkysky.com.ar",
-			},
-		},
-		&RemoveEmptyTag{},
-		&UnsmartCode{},
-		&NarrowTag{},
-		&Punc{},
+	tx2, err := Parse(sample)
+	if err != nil {
+		return nil, nil, err
 	}
 	for _, fn := range tx2 {
 

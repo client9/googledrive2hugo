@@ -1,8 +1,6 @@
 package googledrive2hugo
 
 import (
-	"sync"
-
 	"github.com/andybalholm/cascadia"
 	"github.com/client9/ilog"
 	"golang.org/x/net/html"
@@ -17,22 +15,15 @@ var (
 // <a></a> is in docs for unknown reasons
 //
 type RemoveEmptyTag struct {
-	Pattern  string
-	init     sync.Once
 	selector cascadia.Selector
 }
 
+func (n *RemoveEmptyTag) Init() (err error) {
+	n.selector, err = cascadia.Compile(defaultSelectorEmpty)
+	return err
+}
+
 func (n *RemoveEmptyTag) Run(root *html.Node, logger ilog.Logger) error {
-	var err error
-	n.init.Do(func() {
-		if n.Pattern == "" {
-			n.Pattern = defaultSelectorEmpty
-		}
-		n.selector, err = cascadia.Compile(n.Pattern)
-	})
-	if err != nil {
-		return err
-	}
 	for _, empty := range n.selector.MatchAll(root) {
 		logger.Debug("", "tag", empty.Data)
 		empty.Parent.RemoveChild(empty)

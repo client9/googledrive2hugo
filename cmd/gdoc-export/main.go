@@ -23,6 +23,7 @@ var (
 )
 
 var (
+	flagConfig   *string
 	flagRoot     *string
 	flagOut      *string
 	flagSanitize *bool
@@ -30,6 +31,7 @@ var (
 )
 
 func init() {
+	flagConfig = flag.String("config", "godoc-export.sh", "config file")
 	flagRoot = flag.String("root", "", "root dir in google drive to use")
 	flagOut = flag.String("out", ".", "output directory")
 	flagSaveTmp = flag.String("tmp", "", "directory to save intermediate files")
@@ -114,8 +116,18 @@ func walker(c googledrive2hugo.Converter, logger ilog.Logger) googledrive2hugo.W
 func main() {
 	stdlog := log.New(os.Stderr, "", 0)
 	logger := adapter.New(stdlog)
+
+	confbytes, err := ioutil.ReadFile(*flagConfig)
+	if err != nil {
+		log.Fatal("unable to read %q: %s", *flagConfig, err)
+	}
+	filter, err := googledrive2hugo.Parse(string(confbytes))
+	if err != nil {
+		log.Fatalf("unable to parse %q", *flagConfig, err)
+	}
 	convert := googledrive2hugo.Converter{
 		Logger: logger,
+		Filters: filter,
 	}
 
 	srv, err := googledrive2hugo.Setup()

@@ -24,6 +24,7 @@ func TestPunc(t *testing.T) {
 			t.Fatalf("unable to parse %q", tt)
 		}
 		p := Punc{}
+		p.Init()
 		err = p.Run(nodes[0], &ilog.NopLogger{})
 		if err == nil {
 			t.Errorf("expected an error with %q", tt)
