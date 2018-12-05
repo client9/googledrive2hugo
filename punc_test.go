@@ -27,7 +27,30 @@ func TestPunc(t *testing.T) {
 		p.Init()
 		err = p.Run(nodes[0], &ilog.NopLogger{})
 		if err == nil {
-			t.Errorf("expected no error with %q", tt)
+			t.Errorf("expected error with %q", tt)
+		}
+	}
+
+}
+
+func TestPuncPositive(t *testing.T) {
+
+	cases := []string{
+		"<p>foo.</p>",
+		"<p><b>foo.</b></p>",
+	}
+	body := newElementNode("body")
+	for _, tt := range cases {
+		r := strings.NewReader(tt)
+		nodes, err := html.ParseFragment(r, body)
+		if err != nil {
+			t.Fatalf("unable to parse %q", tt)
+		}
+		p := Punc{}
+		p.Init()
+		err = p.Run(nodes[0], &ilog.NopLogger{})
+		if err != nil {
+			t.Errorf("expected no error with %q, got %s", tt, err)
 		}
 	}
 
