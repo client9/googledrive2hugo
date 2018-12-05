@@ -16,6 +16,7 @@ const (
 	defaultSelectorPunc      = "p"
 )
 
+// <a>...</a> should never end in these
 var badAnchorEndings = []string{
 	".",
 	",",
@@ -63,8 +64,14 @@ func (n *NarrowTag) Init() (err error) {
 }
 
 func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
+
+	// get tags that shouldn't have leading or trailing whitespace
 	for _, p := range n.selector.MatchAll(root) {
+
+		// get textnodes inside these tags
 		nodes := getTextNodes(p)
+
+		// remove weird empty text nodes (rarely happens if at all)
 		if isBlank(nodes) {
 			log.Debug("blank node", "tag", p.Data)
 			prev := getPrevTextNode(getParentBlock(p), p)
@@ -74,9 +81,13 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
 			p.Parent.RemoveChild(p)
 			continue
 		}
+
+		// get first text node
 		first := nodes[0]
 		linked := first.Data
 		tmp := trimLeftSpace(linked)
+
+		// if has leading spaces, remove and possibly add space to previous node
 		if linked != tmp {
 			first.Data = tmp
 			log.Debug("trim left", "tag", p.Data, "text", getTextContent(p))
@@ -86,9 +97,12 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
 			}
 		}
 
+		// get last text node
 		last := nodes[len(nodes)-1]
 		linked = last.Data
 		tmp = trimRightSpace(linked)
+
+		// if has trailing white space, remove and possibly add space to next node
 		if linked != tmp {
 			log.Debug("trim right", "tag", p.Data, "text", getTextContent(p))
 			last.Data = tmp
@@ -102,10 +116,13 @@ func (n *NarrowTag) Run(root *html.Node, log ilog.Logger) (err error) {
 			}
 		}
 
-		linked = last.Data
-		for _, bada := range badAnchorEndings {
-			if strings.HasSuffix(linked, bada) {
-				return fmt.Errorf("tag <%s> %q has ending %q", p.Data, getTextContent(p), bada)
+		// check to see <a> ends in punctuation
+		if p.DataAtom == atom.A {
+			linked = last.Data
+			for _, bada := range badAnchorEndings {
+				if strings.HasSuffix(linked, bada) {
+					return fmt.Errorf("tag <%s> %q has ending %q", p.Data, getTextContent(p), bada)
+				}
 			}
 		}
 	}
