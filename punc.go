@@ -170,9 +170,11 @@ func pEnding(root *html.Node, log ilog.Logger) error {
 	if len(root.Data) == 0 {
 		return fmt.Errorf("Weird: paragraph ended in empty text node")
 	}
-	if root.Parent != nil && (root.Parent.DataAtom != atom.P && root.Parent.DataAtom != atom.A) {
-		return fmt.Errorf("Last Paragraph text node's parent is not <p>, got <%s>", root.Parent.Data)
-	}
+	/*
+		if root.Parent != nil && (root.Parent.DataAtom != atom.P && root.Parent.DataAtom != atom.A) {
+			return fmt.Errorf("Last Paragraph text node's parent is not <p>, got <%s>", root.Parent.Data)
+		}
+	*/
 	tmp := trimRightSpace(root.Data)
 	if tmp != root.Data {
 		if len(tmp) == 0 {
