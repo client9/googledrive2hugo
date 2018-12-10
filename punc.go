@@ -191,16 +191,16 @@ func pEnding(root *html.Node, log ilog.Logger) error {
 
 		//   foo".   should be foo."
 		if isQuote(last2) && isEndOrShortCode(last1) {
-			return fmt.Errorf("punctuation outside quote")
+			return fmt.Errorf("punctuation %U is outside quote %U", last1, last2)
 		}
 
 		// foo"  should be foo."
 		if !isEndOrShortCode(last2) && isQuote(last1) {
-			return fmt.Errorf("ending quote is missing punctuation")
+			return fmt.Errorf("ending quote %U is missing inner punctuation, got %U", last1, last2)
 		}
 	}
 	if !isEndOrShortCode(last1) {
-		return fmt.Errorf("not end with any punctuation")
+		return fmt.Errorf("does not end with any punctuation, got %U", last1)
 	}
 	return nil
 }
@@ -215,6 +215,7 @@ func hasParentAnchor(root *html.Node, current *html.Node) bool {
 }
 
 func isEnd(r rune) bool {
+	// u2026 is HORIZONTAL ELLIPSIS
 	switch r {
 	case '.', '?', '!', ':', '\u2026':
 		return true
@@ -229,7 +230,10 @@ func isShortCode(r rune) bool {
 func isEndOrShortCode(r rune) bool {
 	return isEnd(r) || isShortCode(r)
 }
+
+// Should be named 'isEndingQuote'
 func isQuote(r rune) bool {
+	// u201d is RIGHT DOUBLE QUOTATION MARK
 	switch r {
 	case '"', '\u201d':
 		return true
