@@ -186,6 +186,9 @@ func pEnding(root *html.Node, log ilog.Logger) error {
 	}
 	chars := []rune(root.Data)
 	last1 := chars[len(chars)-1]
+	if !isEndOrShortCode(last1) && !isQuote(last1) {
+		return fmt.Errorf("does not end with any punctuation, got %U", last1)
+	}
 	if len(root.Data) > 1 {
 		last2 := chars[len(chars)-2]
 
@@ -198,9 +201,6 @@ func pEnding(root *html.Node, log ilog.Logger) error {
 		if !isEndOrShortCode(last2) && isQuote(last1) {
 			return fmt.Errorf("ending quote %U is missing inner punctuation, got %U", last1, last2)
 		}
-	}
-	if !isEndOrShortCode(last1) {
-		return fmt.Errorf("does not end with any punctuation, got %U", last1)
 	}
 	return nil
 }

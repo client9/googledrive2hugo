@@ -38,6 +38,7 @@ func TestPuncPositive(t *testing.T) {
 	cases := []string{
 		"<p>foo.</p>",
 		"<p><b>foo.</b></p>",
+		"<p>foo.\"<p>",
 	}
 	body := newElementNode("body")
 	for _, tt := range cases {
