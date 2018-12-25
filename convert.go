@@ -35,9 +35,13 @@ func (c *Converter) ToHTML(src []byte, fileMeta map[string]interface{}) ([]byte,
 	meta := MetaMerge(textMeta, fileMeta)
 
 	// generate some extra tags for rollup or archives
-	date, ok := meta["date"].(time.Time)
+	value, ok := meta["date"]
 	if !ok {
-		return nil, fmt.Errorf("unable to get document date metadata")
+		return nil, fmt.Errorf("unable to document date in %s", string(src))
+	}
+	date, ok := value.(time.Time)
+	if !ok {
+		return nil, fmt.Errorf("unable convert date %T %v to time.Time", value, value)
 	}
 	meta["date-year"] = fmt.Sprintf("%d", date.Year())
 	meta["date-month"] = fmt.Sprintf("%d/%02d", date.Year(), date.Month())
