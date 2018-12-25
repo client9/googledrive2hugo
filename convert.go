@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/client9/ilog"
+	"github.com/spf13/cast"
 	"golang.org/x/net/html"
 )
 
@@ -37,11 +37,11 @@ func (c *Converter) ToHTML(src []byte, fileMeta map[string]interface{}) ([]byte,
 	// generate some extra tags for rollup or archives
 	value, ok := meta["date"]
 	if !ok {
-		return nil, fmt.Errorf("unable to document date in %s", string(src))
+		return nil, fmt.Errorf("unable to get document date in %s", string(src))
 	}
-	date, ok := value.(time.Time)
-	if !ok {
-		return nil, fmt.Errorf("unable convert date %T %v to time.Time", value, value)
+	date, err := cast.ToTimeE(value)
+	if err != nil {
+		return nil, fmt.Errorf("unable convert date '%T' %v to time.Time", value, value)
 	}
 	meta["date-year"] = fmt.Sprintf("%d", date.Year())
 	meta["date-month"] = fmt.Sprintf("%d/%02d", date.Year(), date.Month())
