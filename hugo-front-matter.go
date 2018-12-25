@@ -1,7 +1,6 @@
 package googledrive2hugo
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -95,14 +94,10 @@ func HugoFrontMatter(root *html.Node) (map[string]interface{}, error) {
 	// the front matter is code!
 	front = unsmart(front)
 
-	imeta, err := metadecoders.Unmarshal([]byte(front), metadecoders.YAML)
+	meta, err := metadecoders.Default.UnmarshalToMap([]byte(front), metadecoders.YAML)
 	if err != nil {
 		log.Printf("FRONT:\n%s", front)
 		return nil, err
-	}
-	meta, ok := imeta.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("hugo config problem, got unknown type back")
 	}
 	if title := extractTitle(root); title != "" {
 		if _, ok := meta["title"]; !ok {
