@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/client9/ilog"
 	"golang.org/x/net/html"
@@ -26,11 +27,23 @@ func (c *Converter) ToHTML(src []byte, fileMeta map[string]interface{}) ([]byte,
 		return nil, err
 	}
 
-	content, meta, err := c.FromNode(getBody(root))
+	content, textMeta, err := c.FromNode(getBody(root))
 	if err != nil {
 		return nil, err
 	}
-	return HugoContentWrite(content, MetaMerge(meta, fileMeta))
+
+	meta := MetaMerge(textMeta, fileMeta)
+
+	// generate some extra tags for rollup or archives
+	date, ok := meta["date"].(time.Time)
+	if !ok {
+		return nil, fmt.Errorf("unable to get document date metadata")
+	}
+	meta["date-year"] = fmt.Sprintf("%d", date.Year())
+	meta["date-month"] = fmt.Sprintf("%d/%02d", date.Year(), date.Month())
+	meta["date-day"] = fmt.Sprintf("%d/%02d/%02d", date.Year(), date.Month(), date.Day())
+
+	return HugoContentWrite(content, meta)
 }
 
 func (c *Converter) parseFragment(src string) (string, error) {
