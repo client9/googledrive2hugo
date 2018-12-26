@@ -43,9 +43,9 @@ func (c *Converter) ToHTML(src []byte, fileMeta map[string]interface{}) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("unable convert date '%T' %v to time.Time", value, value)
 	}
-	meta["date-year"] = fmt.Sprintf("%d", date.Year())
-	meta["date-month"] = fmt.Sprintf("%d/%02d", date.Year(), date.Month())
-	meta["date-day"] = fmt.Sprintf("%d/%02d/%02d", date.Year(), date.Month(), date.Day())
+	meta["year"] = fmt.Sprintf("%d", date.Year())
+	meta["month"] = fmt.Sprintf("%d/%02d", date.Year(), date.Month())
+	meta["day"] = fmt.Sprintf("%d/%02d/%02d", date.Year(), date.Month(), date.Day())
 
 	return HugoContentWrite(content, meta)
 }
